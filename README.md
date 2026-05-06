@@ -9,7 +9,7 @@ Local interview prep app: **practice problems** (platform-style), **technical sc
 
 ## Setup
 
-1. **Server**
+1. ****Server****
 
    ```bash
    cd server
