@@ -2,7 +2,7 @@
 
 Local interview prep app: **practice problems** (platform-style), **technical screening** Q&A, and **mock** flows. The UI is a **React + TypeScript** (Vite) client; generation and caching run on a small Express API backed by SQLite. New items are produced with the **Anthropic Claude** API and stored under `server/data/warroom.db`.
 
-## Requirements
+## Requirements ##
 
 - **Node.js 18+** (global `fetch` is used on the server)
 - An **Anthropic API key**
