@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   CALM_PROTOCOLS,
   DAILY_HABITS,
@@ -55,6 +55,7 @@ const categoryColor: Record<string, string> = {
 export default function BrainTraining({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("daily");
   const [habits, setHabits] = useState(loadHabitState);
+  const [streak, setStreak] = useState(loadStreak);
   const [failureLog, setFailureLog] = useState(loadFailureLog);
   const [expandedTechnique, setExpandedTechnique] = useState<string | null>(
     MEMORY_TECHNIQUES[0].id,
@@ -64,11 +65,11 @@ export default function BrainTraining({ onBack }: { onBack: () => void }) {
   );
   const [readyChecked, setReadyChecked] = useState<Record<number, boolean>>({});
 
-  const streak = useMemo(() => loadStreak(), [habits]);
   const progress = habitProgress(habits.checked, DAILY_HABITS.length);
 
   const handleToggleHabit = (id: string) => {
     setHabits(toggleHabit(id, habits));
+    setStreak(loadStreak());
   };
 
   const handleSaveLog = () => {

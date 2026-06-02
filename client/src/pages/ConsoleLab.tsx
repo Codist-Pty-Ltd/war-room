@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CONSOLE_CHALLENGES,
   ENRICHED_SYSTEM_DESIGN,
@@ -76,7 +76,10 @@ export default function ConsoleLab({ onBack }: { onBack: () => void }) {
   const [code, setCode] = useState("");
   const [designAnswer, setDesignAnswer] = useState("");
   const [progress, setProgress] = useState(loadProgress);
-  const [locks, setLocks] = useState<Record<string, ReturnType<typeof getLock>>>({});
+  const [locks, setLocks] = useState<Record<string, ReturnType<typeof getLock>>>(() => {
+    const firstId = CONSOLE_CHALLENGES[0].id;
+    return { [firstId]: recordChallengeOpen(firstId) };
+  });
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [result, setResult] = useState<ReturnType<typeof evaluateSubmission> | null>(null);
 
@@ -105,15 +108,11 @@ export default function ConsoleLab({ onBack }: { onBack: () => void }) {
   const challenge = mode === "console" ? consoleChallenge : designChallenge;
   const skillLesson = SKILL_LESSONS.find((s) => s.id === learnSkill) ?? SKILL_LESSONS[0];
 
-  useEffect(() => {
-    if (mode !== "console") return;
-    const rec = recordChallengeOpen(consoleId);
-    setLocks((prev) => ({ ...prev, [consoleId]: rec }));
-  }, [consoleId, mode]);
-
-  useEffect(() => {
-    if (locked) setTab("submit");
-  }, [locked, consoleId]);
+  const applyConsoleOpen = (id: string) => {
+    const rec = recordChallengeOpen(id);
+    setLocks((prev) => ({ ...prev, [id]: rec }));
+    setTab(isChallengeLocked(rec) ? "submit" : "brief");
+  };
 
   const handleEvaluate = () => {
     const base = mode === "console" ? consoleChallenge : designChallenge;
@@ -137,10 +136,16 @@ export default function ConsoleLab({ onBack }: { onBack: () => void }) {
   const selectConsole = (id: string) => {
     setConsoleId(id);
     setApproachIdx(0);
-    setTab("brief");
     setCode("");
     setResult(null);
     setSubmitMsg(null);
+    applyConsoleOpen(id);
+  };
+
+  const enterConsoleMode = () => {
+    if (mode === "console") return;
+    setMode("console");
+    applyConsoleOpen(consoleId);
   };
 
   const selectDesign = (id: string) => {
@@ -169,7 +174,7 @@ export default function ConsoleLab({ onBack }: { onBack: () => void }) {
         </button>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: sizes.spacingMd }}>
-          <button type="button" style={pill(mode === "console")} onClick={() => setMode("console")}>
+          <button type="button" style={pill(mode === "console")} onClick={enterConsoleMode}>
             CODE ({CONSOLE_CHALLENGES.length})
           </button>
           <button type="button" style={pill(mode === "design")} onClick={() => setMode("design")}>
