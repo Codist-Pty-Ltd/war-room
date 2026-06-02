@@ -13,6 +13,9 @@ import ScreeningView from "./components/ScreeningView";
 import PrepGuide from "./pages/PrepGuide";
 import Dashboard from "./pages/Dashboard";
 import Certifications from "./pages/Certifications";
+import NtokozoMastery from "./pages/NtokozoMastery";
+import ConsoleLab from "./pages/ConsoleLab";
+import BrainTraining from "./pages/BrainTraining";
 import { PLATFORMS } from "./constants/platforms";
 import { useStats } from "./hooks/useStats";
 import { useTimer } from "./hooks/useTimer";
@@ -222,6 +225,21 @@ function WarRoomApp() {
     setScreen("platform");
   };
 
+  const handleMastery = () => {
+    timer.stop();
+    setScreen("mastery");
+  };
+
+  const handleConsoleLab = () => {
+    timer.stop();
+    setScreen("consoleLab");
+  };
+
+  const handleBrainLab = () => {
+    timer.stop();
+    setScreen("brainLab");
+  };
+
   return (
     <div
       style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}
@@ -238,6 +256,9 @@ function WarRoomApp() {
         onScreening={handleScreening}
         onMock={handleMock}
         onBBD={handleBBD}
+        onMastery={handleMastery}
+        onConsoleLab={handleConsoleLab}
+        onBrainLab={handleBrainLab}
         screen={screen}
       />
       {screen === "certs" && <Certifications onBack={handleBackToPlatforms} />}
@@ -298,6 +319,9 @@ function WarRoomApp() {
         <MockSession config={mockConfig} onFinish={handleMockFinish} />
       )}
       {screen === "bbd" && <BBDMockSession onFinish={handleBBDFinish} />}
+      {screen === "mastery" && <NtokozoMastery onBack={handleBackToPlatforms} />}
+      {screen === "consoleLab" && <ConsoleLab onBack={handleBackToPlatforms} />}
+      {screen === "brainLab" && <BrainTraining onBack={handleBackToPlatforms} />}
     </div>
   );
 }

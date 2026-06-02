@@ -1,0 +1,55 @@
+Coding Exercise
+ 
+Build a .NET 8/9/10 console app (C#). No third-party libraries.
+ 
+Data source
+ 
+Primary source (preferred):
+Call GET https://dogapi.dog/api/v2/breeds and read results from the JSON:API response under data[*].attributes.
+Fallback (only if the API is inaccessible):
+Load from the provided JSON file breed-data-02.json (same shape as the API response).
+ 
+Fields to use
+ 
+From attributes, use:
+name
+life
+female_weight
+Each of life and female_weight may be:
+an object: { "min": <number>, "max": <number> }
+ 
+Rankings to output
+ 
+Produce two lists (exactly 10 items when possible):
+Top 10 by max life span (descending)
+Top 10 by max female weight (descending)
+Tie-breaker:
+If two breeds have the same max value, sort by name ascending.
+Output format (console)
+ 
+Print clean, numbered output starting at 1:
+ 
+Top 10 by Max Life Span
+1. Breed A — max_lifespan=20
+2. Breed B — max_lifespan=19
+…
+ 
+Top 10 Heaviest Female Breeds
+1. Breed X — max_female_weight=55
+2. Breed Y — max_female_weight=52
+...
+ 
+ 
+Error handling
+Handle HTTP failures / timeouts / invalid JSON gracefully (don’t crash; print a useful message and exit non-zero if you want).
+Notes
+Tests are not required.
+Don’t use any external libraries
+Linq is not an external library. Feel free to use it as much as you'd like.
+Attempt to balance efficiency with clear code
+It's not an OO structuring question. You don't need to use interfaces.
+We encourage you to look things up on the internet
+Optional
+ 
+Now, consider life and female_weight being:
+a range string: e.g. "10 - 12", "10–12", "10 to 12", "20 - 25 kg".

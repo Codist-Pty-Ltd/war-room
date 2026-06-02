@@ -14,6 +14,9 @@ export default function Header({
   onScreening,
   onMock,
   onBBD,
+  onMastery,
+  onConsoleLab,
+  onBrainLab,
   screen,
 }) {
   const authSurface = useContext(AuthSurfaceContext);
@@ -145,6 +148,54 @@ export default function Header({
           }}
         >
           BBD PREP
+        </button>
+        <button
+          type="button"
+          onClick={onBrainLab}
+          style={{
+            ...navBtnStyle(screen === "brainLab", "#ff9f43"),
+            color: "#ff9f43",
+            fontWeight: 700,
+            border:
+              screen === "brainLab" ? "1px solid #ff9f43" : "1px solid #ff9f4355",
+            borderRadius: "4px",
+            padding: "4px 10px",
+            background: screen === "brainLab" ? "#ff9f4322" : "#ff9f4310",
+          }}
+        >
+          BRAIN LAB
+        </button>
+        <button
+          type="button"
+          onClick={onConsoleLab}
+          style={{
+            ...navBtnStyle(screen === "consoleLab", "#00e5a0"),
+            color: screen === "consoleLab" ? "#00e5a0" : "#00e5a0",
+            fontWeight: 700,
+            border:
+              screen === "consoleLab" ? "1px solid #00e5a0" : "1px solid #00e5a055",
+            borderRadius: "4px",
+            padding: "4px 10px",
+            background: screen === "consoleLab" ? "#00e5a022" : "#00e5a010",
+          }}
+        >
+          CONSOLE LAB
+        </button>
+        <button
+          type="button"
+          onClick={onMastery}
+          style={{
+            ...navBtnStyle(screen === "mastery", "#bf7fff"),
+            color: screen === "mastery" ? "#bf7fff" : "#bf7fff",
+            fontWeight: 700,
+            border:
+              screen === "mastery" ? "1px solid #bf7fff" : "1px solid #bf7fff55",
+            borderRadius: "4px",
+            padding: "4px 10px",
+            background: screen === "mastery" ? "#bf7fff22" : "#bf7fff10",
+          }}
+        >
+          ◇ NTOKOZO
         </button>
         {authSurface?.role === "super" ? (
           <button
