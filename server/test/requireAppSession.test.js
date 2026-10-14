@@ -74,17 +74,16 @@ test("requireAppSession: 401 when auth enabled and no cookie", async (t) => {
 });
 
 test("requireAppSession: next when valid super session cookie", async (t) => {
-  const secret = "1234567890123456";
   const { requireAppSession, restore } = loadWithEnv({
     WAR_ROOM_APP_USER: "alice",
     WAR_ROOM_APP_PASSWORD: "x",
-    WAR_ROOM_SESSION_SECRET: secret,
+    WAR_ROOM_SESSION_SECRET: "1234567890123456",
   });
   t.after(restore);
-  const { createSessionCookie, COOKIE_NAME } = require("../utils/appSession");
-  const { value } = createSessionCookie("alice", "super");
   let sess;
-  const req = { headers: { cookie: `${COOKIE_NAME}=${encodeURIComponent(value)}` } };
+  const req = {
+    session: { username: "alice", role: "super" },
+  };
   await new Promise((resolve) => {
     requireAppSession(req, { status() {}, json() {} }, () => {
       sess = req.appSession;

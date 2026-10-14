@@ -1,0 +1,1482 @@
+{
+  "exam": {
+    "provider": "IKM TechCheck",
+    "expiresNote": "Assessment links expire Jun 16, 2026 13:35 SAST",
+    "tests": [
+      {
+        "id": "csharp-8",
+        "name": "C# 8.0 Programming",
+        "questions": 39,
+        "timeLimitMinutes": 98,
+        "targetCorrect": 28,
+        "targetPercent": 70,
+        "categories": [
+          "csharp",
+          "warmup"
+        ]
+      },
+      {
+        "id": "investec-fullstack",
+        "name": "Investec Full Stack (C#, Angular, SQL)",
+        "questions": 66,
+        "timeLimitMinutes": 165,
+        "targetCorrect": 47,
+        "targetPercent": 70,
+        "categories": [
+          "angular",
+          "aspnet",
+          "sql",
+          "devops",
+          "csharp"
+        ]
+      }
+    ],
+    "stack": [
+      "C# 8",
+      "Angular 17",
+      "ASP.NET MVC 5",
+      "Web API 2",
+      "ANSI SQL:2011",
+      "DevOps",
+      "Git"
+    ]
+  },
+  "studyTips": [
+    "IKM is adaptive — wrong answers may lead to harder follow-ups; read every option.",
+    "Multi-select questions: select ALL correct answers; partial credit is usually none.",
+    "C# 8 first (39 Q / 98 min) — target 28+ correct (~70%).",
+    "Full stack second (66 Q / 165 min) — target 47+ correct; weight Angular + SQL heavily.",
+    "Watch async/await in catch, explicit interface implementation, and LINQ aggregate traps."
+  ],
+  "flashcards": [
+    {
+      "id": "warm-01",
+      "category": "warmup",
+      "exam": "both",
+      "difficulty": "mid",
+      "question": "Which of the following correctly matches a capital city with its country?",
+      "options": [
+        "Paris, Italy",
+        "New York, United States",
+        "London, United Kingdom",
+        "Valletta, Malta",
+        "Yangley, Antarctica"
+      ],
+      "answer": "**Correct:**\n- London, United Kingdom\n- Valletta, Malta"
+    },
+    {
+      "id": "warm-02",
+      "category": "warmup",
+      "exam": "both",
+      "difficulty": "mid",
+      "question": "What is the total number of letters in the Greek Alphabet?",
+      "options": [
+        "3",
+        "24",
+        "27",
+        "3000",
+        "27,000,000"
+      ],
+      "answer": "**Correct:** 24"
+    },
+    {
+      "id": "cs-01",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which are valid ways to define a ToString() on this struct so it outputs the struct contents as a string?\n\npublic struct RegularShape { public int NumberOfSides; public double LengthOfSide; }",
+      "options": [
+        "public string ToString() { ... }",
+        "public static string ToString() { ... }",
+        "public override string ToString() { ... }",
+        "public override readonly string ToString() { ... }",
+        "public constant string ToString() { ... }"
+      ],
+      "answer": "**Correct:**\n- public override string ToString() { ... }\n- public override readonly string ToString() { ... }"
+    },
+    {
+      "id": "cs-02",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Given a List<Example> with B values 1–9, which statements store number 5 in result?",
+      "options": [
+        "int result = examples.Sum(x => x.B);",
+        "int result = examples.Median(x => x.B);",
+        "int result = Convert.ToInt32(examples.Average(x => x.B));",
+        "int result = Convert.ToInt32(examples.Mode(x => x.B));",
+        "int result = Convert.ToInt32(examples.Where(x => x.A == \"B\").Average(x => x.B));"
+      ],
+      "answer": "**Correct:**\n- int result = Convert.ToInt32(examples.Average(x => x.B));\n- int result = Convert.ToInt32(examples.Where(x => x.A == \"B\").Average(x => x.B));",
+      "codeExample": "examples.Average(x => x.B) => 5; Where A==\"B\" averages 2,5,8 => 5"
+    },
+    {
+      "id": "cs-03",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which C# exception handlers can call an asynchronous operation named LogException?",
+      "options": [
+        "catch (Exception ex) { LogException(ex); }",
+        "catch (Exception ex) { async Task LogException(ex); }",
+        "try { await LogException(ex); }",
+        "catch (Exception ex) { async LogException(ex); }",
+        "catch (Exception ex) { await LogException(ex); }"
+      ],
+      "answer": "**Correct:** catch (Exception ex) { await LogException(ex); }\n\nRequires async catch context (C# 5+ in async methods, or local async function)."
+    },
+    {
+      "id": "cs-04",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which C# statement creates an alias MyAlias for namespace MyNamespace?",
+      "options": [
+        "Imports MyNamespace as MyAlias",
+        "Imports MyNamespace = MyAlias",
+        "using MyNamespace as MyAlias",
+        "using MyNamespace = MyAlias",
+        "using MyAlias = MyNamespace"
+      ],
+      "answer": "**Correct:** using MyAlias = MyNamespace;"
+    },
+    {
+      "id": "cs-05",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which statements correctly describe: class BaseClass<T, U> where T : U where U : class, new() { }",
+      "options": [
+        "Type U must be an abstract class.",
+        "Type T can be a value type.",
+        "Type U must have a parameterless constructor.",
+        "Type T must be a reference type.",
+        "Type T must be or derive from type U."
+      ],
+      "answer": "**Correct:**\n- Type U must have a parameterless constructor.\n- Type T must be or derive from type U."
+    },
+    {
+      "id": "cs-06",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "When creating class C given A and B (B seals method1), which class definitions are valid?",
+      "options": [
+        "public class C : B { public static method2(int parm) { } }",
+        "public class C : B { public void method3() { } }",
+        "public sealed class C : B { protected override sealed void method1() { } }",
+        "public class C : A { public void method3() { } }",
+        "public class C : A { public override virtual void method1(string parm) { } }"
+      ],
+      "answer": "**Correct:**\n- public class C : B { public void method3() { } }\n- public class C : A { public void method3() { } }\n\nCannot re-override sealed method1 on B; cannot override non-virtual method2."
+    },
+    {
+      "id": "cs-07",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which snippets use WriteDelegate to invoke WriteNumber, WriteMoney, and WriteHexadecimal in order for value 1000?",
+      "options": [
+        "Assign WriteNumber, += WriteMoney, += WriteHexadecimal, call writeDel1(1000)",
+        "Assign WriteNumber, replace with WriteMoney, replace with WriteHexadecimal",
+        "writeDel1 += writeDel2 + writeDel3 then call",
+        "writeDel1 = writeDel2 + writeDel3 then call",
+        "Assign only WriteNumber then call"
+      ],
+      "answer": "**Correct:** Multicast via += chain, or writeDel1 += writeDel2 + writeDel3 (delegate combination)."
+    },
+    {
+      "id": "cs-08",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "A .NET Core app saves images to a public Images folder but files are not saved. Possible reason?",
+      "options": [
+        ".NET Core saves files if CORS is enabled",
+        "Images folder may not give write permissions to the web user",
+        "Storage must be FAT32",
+        "Images above 1024px redirected to compressed folder",
+        "Web .NET Core programs cannot save files"
+      ],
+      "answer": "**Correct:** The Images folder may not give write permissions to the web user (IIS/app pool identity or Kestrel process user)."
+    },
+    {
+      "id": "cs-09",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statement receives a reference to the assembly that called the currently executing method?",
+      "options": [
+        "Assembly.GetCallingAssembly()",
+        "Assembly.Load()",
+        "Assembly.CallingAssembly",
+        "Assembly.ParentAssembly",
+        "Assembly.GetAssembly()"
+      ],
+      "answer": "**Correct:** var assembly = System.Reflection.Assembly.GetCallingAssembly();"
+    },
+    {
+      "id": "cs-10",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which delegates represent a method executed when a managed thread is created?",
+      "options": [
+        "ThreadStart",
+        "StartThread",
+        "TimerCallback",
+        "WaitOrTimerCallback",
+        "ParameterizedThreadStart"
+      ],
+      "answer": "**Correct:** ThreadStart and ParameterizedThreadStart"
+    },
+    {
+      "id": "cs-11",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statements are correct regarding C# discards (_)?",
+      "options": [
+        "Discard pattern cannot be used with is/switch",
+        "Discards are temporary dummy variables intentionally unused",
+        "Stand-alone discards cannot ignore return values",
+        "Discards cannot be used with out parameters",
+        "Discards cannot be used when deconstructing tuples"
+      ],
+      "answer": "**Correct:** Discards, designated as _, are temporary dummy variables intentionally unused in application code."
+    },
+    {
+      "id": "cs-12",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statement updates MyString from \"abc\" to \"ABC\"? (String MyString = \"abc\";)",
+      "options": [
+        "MyString.ToUpperString();",
+        "MyString = MyString.ToUpper();",
+        "MyString.ToUpper();",
+        "MyString = MyString.ToUpperInvariant();",
+        "MyString = MyString.ToUpperCase();"
+      ],
+      "answer": "**Correct:** MyString = MyString.ToUpper(); (also ToUpperInvariant works)"
+    },
+    {
+      "id": "cs-13",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which C# String methods use the params keyword?",
+      "options": [
+        "String.Join()",
+        "String.Contains()",
+        "String.Format()",
+        "String.Concat()",
+        "String.Copy()"
+      ],
+      "answer": "**Correct:** String.Join(), String.Format(), String.Concat()"
+    },
+    {
+      "id": "cs-14",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Nested namespaces Admin.Fill.Bin and Admin.Empty.Bin — CompanyWaste : Emptying.Bin. Which fix compiles?",
+      "options": [
+        "Line A: using Emptying = Admin.Empty;",
+        "Line B: class CompanyWaste : Bin",
+        "Line A: using Emptying = Admin.Fill;",
+        "Compiles as written",
+        "Line B: class CompanyWaste : Empty.Bin"
+      ],
+      "answer": "**Correct:** using Emptying = Admin.Empty; at Line A"
+    },
+    {
+      "id": "cs-15",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "The dynamic type exposes which runtime to C#?",
+      "options": [
+        "SQL CLR",
+        "Dynamic Language Runtime",
+        "Common Language Runtime",
+        ".NET Language Runtime",
+        "Active Language Runtime"
+      ],
+      "answer": "**Correct:** Dynamic Language Runtime (DLR)"
+    },
+    {
+      "id": "cs-16",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which switch pattern finds a hexagon (6 sides) with any side length?",
+      "options": [
+        "RegularShape (6, *) => ...",
+        "RegularShape (6, null) => ...",
+        "RegularShape (6, x => x > 0) => ...",
+        "RegularShape (6, _) => ...",
+        "RegularShape (6, 10) => ..."
+      ],
+      "answer": "**Correct:** RegularShape (6, _) => \"Found a hexagon\""
+    },
+    {
+      "id": "cs-17",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "USB drive removed while reading D:\\file.txt with StreamReader. Program behavior?",
+      "options": [
+        "Throws IOError and terminates",
+        "Throws IOException and terminates",
+        "Throws IOStreamException",
+        "Throws FileNotFoundException",
+        "Continues without errors"
+      ],
+      "answer": "**Correct:** Throws IOException and terminates."
+    },
+    {
+      "id": "cs-18",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statements describe public class Rectangle with value-type properties and Area getter?",
+      "options": [
+        "Can change to struct without modification",
+        "Instances stored on stack (value types only)",
+        "Instances stored on heap",
+        "Area raises conversion exception",
+        "Cannot instantiate (no constructor)"
+      ],
+      "answer": "**Correct:** Instances of this class are stored on the heap (reference type)."
+    },
+    {
+      "id": "cs-19",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which are generic collections in C#?",
+      "options": [
+        "ArrayList<>",
+        "List<T>",
+        "Hashtable<T>",
+        "HashSet<T>",
+        "Dictionary<TKey,TValue>"
+      ],
+      "answer": "**Correct:** List<T>, HashSet<T>, Dictionary<TKey,TValue>"
+    },
+    {
+      "id": "cs-20",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which where clauses compile and execute for: from Number in Numbers ***** select Number?",
+      "options": [
+        "where Number = 5",
+        "where (Number / 2.0) > 20",
+        "where Number in (5, 30)",
+        "where Number < Numbers.Average()",
+        "where Number == System.DateTime.Now.Day"
+      ],
+      "answer": "**Correct:**\n- where (Number / 2.0) > 20\n- where Number < Numbers.Average()\n- where Number == System.DateTime.Now.Day"
+    },
+    {
+      "id": "cs-21",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which Microsoft-recommended practices improve C# performance?",
+      "options": [
+        "StringBuilder.Append vs String.Concat",
+        "foreach vs LINQ for iteration",
+        "ToLower + == vs String.Compare",
+        "ArrayList vs List<T>",
+        "More try-catch vs if"
+      ],
+      "answer": "**Correct:**\n- Use StringBuilder.Append instead of String.Concat\n- Use foreach instead of LINQ to iterate collections"
+    },
+    {
+      "id": "cs-22",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Class implements ISquare (int X { get; }) and IRectangle (int X()). Same name/signature — which statements are correct?",
+      "options": [
+        "Won't use both interfaces",
+        "Cannot implement both",
+        "May provide explicit implementations for both",
+        "Must use private implementation for property X",
+        "Both should be implemented; one explicitly"
+      ],
+      "answer": "**Correct:**\n- May provide explicit implementations for both property X and method X\n- Both method X and property X should be implemented, with one implemented explicitly"
+    },
+    {
+      "id": "cs-23",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Parse enum ConnectionStates from string \"Disconnecting\" — which snippets work?",
+      "options": [
+        "(ConnectionStates)Enum.Parse(typeof(ConnectionStates), myEnumString)",
+        "Enum.TryParse<ConnectionStates>(myEnumString) as assignment",
+        "ConnectionStates.Parse(myEnumString)",
+        "Enum.TryParse<ConnectionStates>(myEnumString, out myEnumValue)",
+        "typeof(ConnectionStates) myEnumString"
+      ],
+      "answer": "**Correct:**\n- (ConnectionStates)Enum.Parse(typeof(ConnectionStates), myEnumString)\n- Enum.TryParse<ConnectionStates>(myEnumString, out myEnumValue)"
+    },
+    {
+      "id": "cs-24",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which C# methods compile successfully?",
+      "options": [
+        "protected Int32 addTwoNumbers(int a, int b) { return a - b; }",
+        "public void addNumbers(int a, int b) { return a + b; }",
+        "public String MarkOrderProcessed(int orderNumber) { if (orderNumber == null) ... }",
+        "void a() { }",
+        "private static checkNumberNotOne(int a) { ... }"
+      ],
+      "answer": "**Correct:**\n- protected Int32 addTwoNumbers(int a, int b) { return a - b; }\n- void a() { }"
+    },
+    {
+      "id": "cs-25",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "UpdateFile may corrupt shared file. Which replacement for StartUpdate() allows only one thread at a time?",
+      "options": [
+        "lock (_lock) around UpdateFile in each thread",
+        "Monitor.Enter only",
+        "Semaphore without lock",
+        "async void UpdateFile",
+        "FileShare.ReadWrite"
+      ],
+      "answer": "**Correct:** lock (_lock) { UpdateFile(...); } on shared object when starting threads.",
+      "codeExample": "object _lock = new object(); lock (_lock) { UpdateFile(...); }"
+    },
+    {
+      "id": "cs-26",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which correctly describes a delegate in C#?",
+      "options": [
+        "Bypasses compile-time type checking",
+        "Type representing references to methods with parameter list and return type",
+        "Definitions for related functionality classes implement",
+        "Enables event notification",
+        "Value type for related variables"
+      ],
+      "answer": "**Correct:** A type that represents references to methods with a parameter list and return type."
+    },
+    {
+      "id": "cs-27",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statements are correct regarding C# regular expressions?",
+      "options": [
+        "Provide a method for processing text",
+        "Do not allow substitutions",
+        "Allow / as special character",
+        "$ indicates beginning of line",
+        "Cannot ignore letter case"
+      ],
+      "answer": "**Correct:** Regular expressions provide a method for processing text."
+    },
+    {
+      "id": "cs-28",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "After IsolatedStorageFile.GetUserStoreForAssembly() and writing Read|Write — which statements are correct?",
+      "options": [
+        "Readable via GetMachineStoreForAssembly()",
+        "File contains Read|Write",
+        "Only accessible under user JohnDoe",
+        "Only accessible under current user",
+        "MyDomain granted Read/Write to sandbox"
+      ],
+      "answer": "**Correct:**\n- File contains Read|Write\n- Application can only access when running under the current user"
+    },
+    {
+      "id": "cs-29",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Which LINQ snippets join students to classes on s.ID equals c.StudentID?",
+      "options": [
+        "Query syntax join",
+        "Query from classes join students malformed",
+        "students.Join(classes, ...)",
+        "students.InnerJoin(...)",
+        "Malformed anonymous object"
+      ],
+      "answer": "**Correct:**\n- students.Join(classes, s => s.ID, c => c.StudentID, (s,c) => new { s.FullName, c.ClassName })\n- from s in students join c in classes on s.ID equals c.StudentID select ..."
+    },
+    {
+      "id": "cs-30",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "CS4014: MethodAsync() not awaited in Main. Which fixes compile without warnings?",
+      "options": [
+        "static async Task Main only",
+        "async Task Main + await MethodAsync()",
+        "async MethodAsync();",
+        "MethodAsync().GetAwaiter().GetResult();",
+        "await in non-async Main"
+      ],
+      "answer": "**Correct:**\n- static async Task Main + await MethodAsync();\n- MethodAsync().GetAwaiter().GetResult();"
+    },
+    {
+      "id": "cs-31",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Subscribe event SomethingHappened to logger.HandleEvent?",
+      "options": [
+        "work.SomethingHappened -= logger.HandleEvent",
+        "work.SomethingHappened == logger.HandleEvent",
+        "work.SomethingHappened => logger.HandleEvent",
+        "work.SomethingHappened = logger.HandleEvent",
+        "work.SomethingHappened += logger.HandleEvent"
+      ],
+      "answer": "**Correct:** work.SomethingHappened += logger.HandleEvent;"
+    },
+    {
+      "id": "cs-32",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "After null-coalescing list operations, what are complete contents of list?",
+      "options": [
+        "4",
+        "1, 2, 3",
+        "Empty list",
+        "1, 2, 3, 4",
+        "null"
+      ],
+      "answer": "**Correct:** 1, 2, 3, 4",
+      "codeExample": "GetList(null) => new list; GetList({1,2,3}) => same; (list ??= new()).Add(4)"
+    },
+    {
+      "id": "cs-33",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Pile<T> must implement IEnumerable over array pile. Which functions are required?",
+      "options": [
+        "public IEnumerator GetEnumerator() { yield return ... }",
+        "GetEnumerator with return val; yield",
+        "public IEnumerable Enumerator()",
+        "static GetEnumerator",
+        "IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator()"
+      ],
+      "answer": "**Correct:**\n- public IEnumerator<T> GetEnumerator() with yield return\n- IEnumerator IEnumerable.GetEnumerator() { return this.GetEnumerator(); }"
+    },
+    {
+      "id": "cs-34",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Why does dynamic dog = new DynamicObject(); dog.breed = \"Labrador\"; fail to compile?",
+      "options": [
+        "DynamicObject is abstract",
+        "Must declare with var",
+        "Attribute for dynamic classes",
+        "Must inherit DynamicObject to define behavior",
+        "Must use BindProperty"
+      ],
+      "answer": "**Correct:** DynamicObject must be inherited — it does not fully implement dynamic member binding for direct instantiation."
+    },
+    {
+      "id": "cs-35",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "PerformanceCounter % Processor Time — which block breaks debugger when CPU > 30%?",
+      "options": [
+        "if (processorPercent > 30)",
+        "Debugger.Break(processorPercent, ...)",
+        "if ((decimal)processorPercent > 30)",
+        "if (processorPercent.GreaterThan(30))",
+        "if (processorPercent.NextValue() > 30f)"
+      ],
+      "answer": "**Correct:** if (processorPercent.NextValue() > 30f) Debugger.Break(); — NextValue() required for first read."
+    },
+    {
+      "id": "cs-36",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "Tuple destructure for NYC population WriteLine — which assignment works?",
+      "options": [
+        "(City: city, State: state, Pop: pop)",
+        "(City: city, State: state, pop)",
+        "(string city, string state, int pop)",
+        "(city, state, pop)",
+        "(string City, string State, int pop)"
+      ],
+      "answer": "**Correct:** var locationPopulation = (City: city, State: state, pop); — lowercase pop matches interpolation."
+    },
+    {
+      "id": "cs-37",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which statements are correct regarding pattern matching in C#?",
+      "options": [
+        "Supports is expressions",
+        "Does not work on generic types",
+        "Switch does not support constant pattern",
+        "Supports switch expressions",
+        "Allows inspection of object/properties for pattern"
+      ],
+      "answer": "**Correct:**\n- Supports is expressions\n- Supports switch expressions\n- Allows inspection of object and properties"
+    },
+    {
+      "id": "cs-38",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which C# class definitions compile?",
+      "options": [
+        "public class MyClass { public String myClass; }",
+        "public interface MyInterface { public MyInterface(); }",
+        "public class MyClass { private MyClass() { } }",
+        "public class MyClass { public String MyClass() { ... } }",
+        "public MyClass(String v) : this() { }"
+      ],
+      "answer": "**Correct:**\n- public class MyClass { public String myClass; }\n- public class MyClass { private MyClass() { } }"
+    },
+    {
+      "id": "cs-39",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which Obsolete attribute marks MethodA deprecated AND causes compiler error?",
+      "options": [
+        "[Obsolete()]",
+        "[Obsolete]",
+        "[Obsolete(message, true)]",
+        "[Obsolete(true)]",
+        "[Obsolete(\"message\")]"
+      ],
+      "answer": "**Correct:** [Obsolete(\"This will be removed in version 2\", true)] — error=true."
+    },
+    {
+      "id": "ng-01",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Which Angular property binding applies a CSS class based on a component property?",
+      "options": [
+        "class=\"{{'my-class': condition}}\"",
+        "class=\"'my-class': condition\"",
+        "class=\"{ 'my-class': condition }\"",
+        "[ngClass]=\"{'my-class': condition}\"",
+        "ngClass=\"my-class\" *ngIf=\"condition\""
+      ],
+      "answer": "**Correct:** <div [ngClass]=\"{'my-class': condition}\"></div>"
+    },
+    {
+      "id": "ng-02",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Display textarea when checkbox hasFeedback is selected?",
+      "options": [
+        "[ngStyle] display block/none",
+        "*ngIf=\"hasFeedback\"",
+        "[(ngModel)]=\"hasFeedback\"",
+        "[ngClass]=\"hasFeedback\"",
+        "@Input()=\"hasFeedback\""
+      ],
+      "answer": "**Correct:** *ngIf=\"hasFeedback\""
+    },
+    {
+      "id": "ng-03",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Lazy-loaded modules — ensure service is NOT shared across modules?",
+      "options": [
+        "Private member",
+        "Provide in lazy module providers",
+        "@Singleton decorator",
+        "providedIn: 'root'",
+        "Provide in component providers"
+      ],
+      "answer": "**Correct:**\n- Provide in lazy-loaded module's providers\n- Provide in component providers"
+    },
+    {
+      "id": "ng-04",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "RxJS: emit values > threshold while transforming format?",
+      "options": [
+        "map",
+        "filter",
+        "tap",
+        "reduce",
+        "scan"
+      ],
+      "answer": "**Correct:** map and filter"
+    },
+    {
+      "id": "ng-05",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Configure module loaded when dedicated route is accessed?",
+      "options": [
+        "Import in AppModule",
+        "Add loadChildren to route",
+        "Undefined routing module",
+        "CanLoad guard only",
+        "Preload during init"
+      ],
+      "answer": "**Correct:** Add loadChildren to the route definition."
+    },
+    {
+      "id": "ng-06",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Add FormControl to FormArray in reactive form?",
+      "options": [
+        "controls.push",
+        "myFormArray.push(new FormControl(''))",
+        "get('myFormArray').controls.add",
+        "addControl on FormArray",
+        "get('myFormArray').push"
+      ],
+      "answer": "**Correct:** this.myFormArray.push(new FormControl(''));"
+    },
+    {
+      "id": "ng-07",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Preload modules based on user behavior patterns?",
+      "options": [
+        "Custom PreloadingStrategy",
+        "Import in component class",
+        "*ngIf preload",
+        "PreloadAllModules",
+        "OnPush change detection"
+      ],
+      "answer": "**Correct:** Implement custom preloading strategy extending PreloadingStrategy."
+    },
+    {
+      "id": "ng-08",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Define default route in Angular 17?",
+      "options": [
+        "{ path: '', component: HomeComponent }",
+        "{ path: '', redirectTo: '/home', pathMatch: 'full' }",
+        "{ path: '/', component: HomeComponent }",
+        "{ path: 'default', component: HomeComponent }",
+        "{ path: 'home', component: HomeComponent }"
+      ],
+      "answer": "**Correct:**\n- { path: '', component: HomeComponent }\n- { path: '', redirectTo: '/home', pathMatch: 'full' }"
+    },
+    {
+      "id": "ng-09",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Retry API up to 3 times on network failure, then handle errors?",
+      "options": [
+        "concatMap and take",
+        "catchError and switchMap",
+        "retry and catchError",
+        "catchError and scan",
+        "retry and takeWhile"
+      ],
+      "answer": "**Correct:** retry and catchError"
+    },
+    {
+      "id": "ng-10",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "AdminModule needs separate UserService instance from root?",
+      "options": [
+        "@Optional() in UserService",
+        "Injector.create()",
+        "Instantiate in components",
+        "providedIn: 'root'",
+        "Declare UserService in AdminModule providers"
+      ],
+      "answer": "**Correct:** Declare UserService in the providers array of AdminModule."
+    },
+    {
+      "id": "ng-11",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Adding/removing reactive form controls — maintain validity?",
+      "options": [
+        "Unique formControlName",
+        "Remove validators from removed controls",
+        "Manually invoke updateValueAndValidity() on parent",
+        "trackBy in *ngFor",
+        "Fixed FormArray size"
+      ],
+      "answer": "**Correct:** Manually invoke updateValueAndValidity() on the parent form group after modifications."
+    },
+    {
+      "id": "ng-12",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Two-way data binding options?",
+      "options": [
+        "Event binding to update model",
+        "ngModel directive",
+        "Event emitter to propagate",
+        "Model property in component",
+        "Property binding to view"
+      ],
+      "answer": "**Correct:** Event binding, ngModel, model property, property binding (all parts of two-way binding)."
+    },
+    {
+      "id": "ng-13",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "LoggerService per-module config with root fallback?",
+      "options": [
+        "Provide in module providers",
+        "providedIn root + override in module",
+        "Shared module import",
+        "Injector.create()",
+        "@Optional() in LoggerService constructor"
+      ],
+      "answer": "**Correct:** Provide in module providers; providedIn root + override; @Optional() for fallback config."
+    },
+    {
+      "id": "ng-14",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Pass data to route without URL?",
+      "options": [
+        "data property in route config",
+        "localStorage",
+        "Store in service",
+        "Component properties",
+        "Query parameters"
+      ],
+      "answer": "**Correct:** route data property, service, component properties (not URL/query params)."
+    },
+    {
+      "id": "ng-15",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Generate labeled checkboxes from preferences array?",
+      "options": [
+        "[ngClass]",
+        "*ngFor over preferences",
+        "@Input()",
+        "*ngIf per preference",
+        "*ngSwitch"
+      ],
+      "answer": "**Correct:** *ngFor to iterate preferences and create checkbox per item."
+    },
+    {
+      "id": "ng-16",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Parent passes data to child @Input() property?",
+      "options": [
+        "bind-inputProperty",
+        "inputProperty=\"{{parentProperty}}\"",
+        "(inputProperty)=",
+        "[inputProperty]=\"parentProperty\"",
+        "{{{inputProperty}}}="
+      ],
+      "answer": "**Correct:** <child [inputProperty]=\"parentProperty\">"
+    },
+    {
+      "id": "ng-17",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Template-driven form validation techniques?",
+      "options": [
+        "minlength/maxlength attributes",
+        "required attribute",
+        "formControl directive",
+        "Validators.required directive",
+        "name=\"ngModel\" template ref"
+      ],
+      "answer": "**Correct:** minlength/maxlength, required, name=\"ngModel\" template reference."
+    },
+    {
+      "id": "ng-18",
+      "category": "angular",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Unsubscribe observable on component destroy to prevent memory leaks?",
+      "options": [
+        "Manual unsubscribe only",
+        "takeUntil + complete destroy subject in ngOnDestroy",
+        "async pipe only",
+        "Never unsubscribe",
+        "setTimeout unsubscribe"
+      ],
+      "answer": "**Correct:** takeUntil(this.onDestroy$) in pipe; ngOnDestroy: next() + complete() on destroy subject.",
+      "codeExample": "pipe(takeUntil(this.onDestroy$)).subscribe(...); ngOnDestroy() { this.onDestroy$.next(); this.onDestroy$.complete(); }"
+    },
+    {
+      "id": "mvc-01",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Web API 2: public Product FindProduct(int id) — attribute for HTTP GET?",
+      "options": [
+        "[Accept = GET]",
+        "[HttpGet]",
+        "[GET]",
+        "[HTTPVerb(\"GET\")]",
+        "[Route(\"HttpGet\")]"
+      ],
+      "answer": "**Correct:** [HttpGet]"
+    },
+    {
+      "id": "mvc-02",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Razor EditorFor nested Person.HomeAddress.City?",
+      "options": [
+        "EditorFor(a => a.Person.HomeAddress.City)",
+        "EditorForChild(...)",
+        "EditorFor(a => a.HomeAddress.City)",
+        "EditorFor(@Model.Person...)",
+        "EditorFor(p => p.Person.(...))"
+      ],
+      "answer": "**Correct:** @Html.EditorFor(a => a.HomeAddress.City)"
+    },
+    {
+      "id": "mvc-03",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "@Html.ActionLink(\"Next\", \"List\", new { page = 2 }) from HomeController.Index — HTML output?",
+      "options": [
+        "List?page=2",
+        "/Home/Next?page=2",
+        "/Home/List?page=2",
+        "/List?page=2",
+        "/Home/List/2"
+      ],
+      "answer": "**Correct:** <a href=\"/Home/List?page=2\">Next</a>"
+    },
+    {
+      "id": "mvc-04",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "UpdateModel(person) but do not update ID?",
+      "options": [
+        "UpdateModel(person, new[] { \"ID\" })",
+        "omit = new[] { \"ID\" }",
+        "UpdateModel(person, new[] { \"FirstName\", \"LastName\" })",
+        "Accept = FirstName, LastName",
+        "Reject ID via AcceptValue"
+      ],
+      "answer": "**Correct:** UpdateModel(person, new[] { \"FirstName\", \"LastName\" }); — include list, not exclude."
+    },
+    {
+      "id": "mvc-05",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Web API 2: map .NET exceptions to HTTP status codes?",
+      "options": [
+        "Override WebApiConfig.OnException",
+        "Override WebApiApplication.OnException",
+        "Override Startup.OnException",
+        "web.config httpResponseException",
+        "ExceptionFilterAttribute OnException"
+      ],
+      "answer": "**Correct:** Create filter deriving from ExceptionFilterAttribute, override OnException."
+    },
+    {
+      "id": "mvc-06",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "MVC 5 validation stops after five errors?",
+      "options": [
+        "ValidationErrorAttribute(5) in FilterConfig",
+        "Html.BeginForm(5)",
+        "TryValidateModel(5)",
+        "@Html.ValidateModelErrors(5)",
+        "MaxModelValidationErrors in Startup"
+      ],
+      "answer": "**Correct:** filters.Add(new ValidationErrorAttribute(5)); in RegisterGlobalFilters (FilterConfig.cs)."
+    },
+    {
+      "id": "mvc-07",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Create Logging action filter for specific controller methods?",
+      "options": [
+        "FilterAttribute + OnActionExecuting/Executed",
+        "IFilterAttribute",
+        "ActionFilterAttribute + OnActionExecuting/Executed",
+        "Add to global filters only",
+        "Add [Logging] to methods"
+      ],
+      "answer": "**Correct:** ActionFilterAttribute with overrides; [Logging] on target methods."
+    },
+    {
+      "id": "mvc-08",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Route api/{controller}/{id} — URL for ProductsController.GetAllProducts()?",
+      "options": [
+        "/products",
+        "/Products/GetAllProducts",
+        "/GetAllProducts",
+        "/api/products",
+        "/api/GetAllProducts"
+      ],
+      "answer": "**Correct:** /api/products"
+    },
+    {
+      "id": "mvc-09",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "HomeController.Index(int id) with route {controller}/{action}/{id} — valid URL?",
+      "options": [
+        "/",
+        "/Home/Index/3",
+        "/Home/Index/abc",
+        "/Home",
+        "/Home/Index"
+      ],
+      "answer": "**Correct:** /Home/Index/3"
+    },
+    {
+      "id": "mvc-10",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "UpdateModel values from HTTP request body (default model binder)?",
+      "options": [
+        "UpdateModel + FormValueProvider as 2nd param",
+        "BindingContext + ControllerContext",
+        "ControllerContext.FromBody",
+        "FormValueProvider as 3rd param",
+        "BindingContext.FormValueProvider"
+      ],
+      "answer": "**Correct:** UpdateModel(model, new FormValueProvider(...)) as second parameter."
+    },
+    {
+      "id": "mvc-11",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Remote validation for unique username without form submit?",
+      "options": [
+        "CheckUserName returns bool",
+        "CheckUserName(RegisterUser) JSON",
+        "[Remote(\"CheckUserName\", \"Register\")]",
+        "CheckUserName string returns JSON bool",
+        "[ValidationCallBack(...)]"
+      ],
+      "answer": "**Correct:**\n- CheckUserName(string UserName) returns JSON true/false\n- [Remote(\"CheckUserName\", \"Register\")] on UserName field"
+    },
+    {
+      "id": "mvc-12",
+      "category": "aspnet",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Which describe routes in MVC 5?",
+      "options": [
+        "Multiple matches throw exception",
+        "Routes do not map to specific files",
+        "Best match from all routes",
+        "Route maps URL pattern to handler",
+        "First matching route wins"
+      ],
+      "answer": "**Correct:**\n- Routes do not map to specific files\n- Route contains URL pattern mapped to handler\n- First matching route wins"
+    },
+    {
+      "id": "sql-01",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Error in: SELECT SUM(id1) FROM t WHERE MIN(id2) = (SELECT MIN(id1) FROM t);",
+      "options": [
+        "WHERE aggregate must match SELECT",
+        "Aggregates not allowed in WHERE",
+        "Subquery must be correlated",
+        "Aggregates not in subquery",
+        "Subquery not in WHERE"
+      ],
+      "answer": "**Correct:** Aggregate functions are not allowed in a WHERE clause."
+    },
+    {
+      "id": "sql-02",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "ORDER_DETAILS table — which aggregate queries execute without error?",
+      "options": [
+        "MAX(order_doc) CLOB",
+        "MIN(order_date)",
+        "COUNT(*)",
+        "SUM(AVG(qty1))",
+        "SUM(qty1, qty2)"
+      ],
+      "answer": "**Correct:** MIN(order_date) and COUNT(*)"
+    },
+    {
+      "id": "sql-03",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Invalid ANSI SQL predicates on integer COL1?",
+      "options": [
+        "col1 IN (1,2,3)",
+        "col1 IS UNIQUE",
+        "col1 EXISTS",
+        "col1 > 100",
+        "col1 BETWEEN 100 AND 200"
+      ],
+      "answer": "**Correct:** col1 IS UNIQUE and col1 EXISTS are invalid."
+    },
+    {
+      "id": "sql-04",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Errors in: SELECT first_name, DISTINCT department_id FROM employees ORDER BY first_name WHERE salary > 1000",
+      "options": [
+        "DISTINCT on individual columns",
+        "ORDER BY numeric only",
+        "WHERE before ORDER BY",
+        "Predicate column must be selected",
+        "DISTINCT with multi-column"
+      ],
+      "answer": "**Correct:**\n- DISTINCT cannot be applied on individual columns (syntax wrong)\n- WHERE must appear before ORDER BY"
+    },
+    {
+      "id": "sql-05",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Correct statements about GROUP BY in ANSI SQL?",
+      "options": [
+        "Summarize grouped data with function",
+        "Does not sort data",
+        "Mandatory in SELECT",
+        "Can use with JOIN",
+        "Max one column"
+      ],
+      "answer": "**Correct:** Summarize with aggregate; does not sort; can use with JOIN."
+    },
+    {
+      "id": "sql-06",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Customers in GA or AL but not zip 35244?",
+      "options": [
+        "state IN ('AL','GA') AND NOT zip = '35244'",
+        "state IN (...) AND zip NOT = '35244'",
+        "state IN (...) OR zip != '35244'",
+        "state IN (...) AND zip != '35244'",
+        "state IN (...) NOT zip = '35244'"
+      ],
+      "answer": "**Correct:** SELECT ... WHERE state IN ('AL', 'GA') AND zip != '35244'"
+    },
+    {
+      "id": "sql-07",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Award students with max(score) > 80 — correct clause order?",
+      "options": [
+        "HAVING then GROUP BY",
+        "WHERE score > 80 then GROUP BY",
+        "WHERE max(score) then GROUP BY",
+        "GROUP BY then HAVING max(score) > 80",
+        "GROUP BY then WHERE max(score)"
+      ],
+      "answer": "**Correct:** GROUP BY student_id HAVING max(score) > 80"
+    },
+    {
+      "id": "sql-08",
+      "category": "sql",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "T(ID1,ID2): rows (1,4)(5,1)(7,2)(3,8). SUM(id1-id2) vs SUM(id1)-SUM(id2)?",
+      "options": [
+        "Query-2 returns 1",
+        "Both NULL",
+        "Query-1 returns 6",
+        "Query-2 returns 6",
+        "Query-1 returns 1"
+      ],
+      "answer": "**Correct:** Query-1 returns 1; Query-2 returns 1.\n\n(1−4)+(5−1)+(7−2)+(3−8) = 1. SUM(id1)−SUM(id2) = 16−15 = 1."
+    },
+    {
+      "id": "ops-01",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Disadvantage of continuous integration?",
+      "options": [
+        "More bugs (automated)",
+        "More work — all units need automated tests",
+        "Integrations Officer required",
+        "Learn external testing services",
+        "Complex Docker configs"
+      ],
+      "answer": "**Correct:** Requires more work from developers — all units need matching automated tests."
+    },
+    {
+      "id": "ops-02",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "DevOps principles for well-built working software?",
+      "options": [
+        "Accept any infra change",
+        "Management clarifies requirements",
+        "Regular process improvement meetings",
+        "Centralized logging",
+        "Monitoring and alerting on errors"
+      ],
+      "answer": "**Correct:** Centralized logging; monitoring/alerting on application errors."
+    },
+    {
+      "id": "ops-03",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Typical uses of Git tags?",
+      "options": [
+        "All commits tagged",
+        "Meaningful name for specific commit",
+        "Code reviewer marks bad changes",
+        "Version numbers for source state",
+        "Mark files ready to commit"
+      ],
+      "answer": "**Correct:** Meaningful name for commit; version numbers for release state."
+    },
+    {
+      "id": "ops-04",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "DevOps practice for faster code revision feedback?",
+      "options": [
+        "Automated deploy to production",
+        "Configuration management compliance",
+        "Continuous resource monitoring",
+        "Continuous integration rapid feedback",
+        "Continuous delivery reduces release time"
+      ],
+      "answer": "**Correct:** Continuous integration provides rapid feedback on correctness of changes."
+    },
+    {
+      "id": "ops-05",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "QA practices in DevOps project?",
+      "options": [
+        "Report errors continuously",
+        "Need days before sign-off",
+        "Coordinate ops for test environment",
+        "Modify prod deploy scripts for testing",
+        "Automate environment setup and testing"
+      ],
+      "answer": "**Correct:** Continuous reporting; coordinate ops for test env; automate setup/testing."
+    },
+    {
+      "id": "ops-06",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "senior",
+      "question": "Disadvantages of continuous deployment?",
+      "options": [
+        "Open SSH in production",
+        "More team lead involvement",
+        "Bigger engineering effort/maintenance",
+        "Production must use containers",
+        "Untested features reach production"
+      ],
+      "answer": "**Correct:** Bigger engineering effort; untested features can reach production automatically."
+    },
+    {
+      "id": "ops-07",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Typical uses of git diff?",
+      "options": [
+        "Diff between commits",
+        "List files in one repo not another",
+        "Working dir vs committed",
+        "Local vs remote",
+        "Highlight changes for developers"
+      ],
+      "answer": "**Correct:** Diff between commits; working directory vs committed repository."
+    },
+    {
+      "id": "ops-08",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Revert uncommitted changes to a single file?",
+      "options": [
+        "git discard",
+        "git checkout <filename>",
+        "git revert <filename>",
+        "git reset <filename>",
+        "git clean <filename>"
+      ],
+      "answer": "**Correct:** git checkout <filename> (modern: git restore <filename>)"
+    },
+    {
+      "id": "ops-09",
+      "category": "devops",
+      "exam": "fullstack",
+      "difficulty": "mid",
+      "question": "Tools for finding/resolving application-level errors?",
+      "options": [
+        "Stack trace reporting",
+        "User usage analytics",
+        "Performance metrics",
+        "Node failure rate alerting",
+        "Service uptime monitoring"
+      ],
+      "answer": "**Correct:** Stack trace reporting; node failure rate alerting."
+    },
+    {
+      "id": "mix-01",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "LINQ standard providers can query which entities?",
+      "options": [
+        "DataTables",
+        "In-memory collections",
+        "Bitmaps",
+        "Source code",
+        "XML documents"
+      ],
+      "answer": "**Correct:** DataTables, in-memory collections, XML documents"
+    },
+    {
+      "id": "mix-02",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "senior",
+      "question": "What can C# interfaces contain (modern C#)?",
+      "options": [
+        "Constructor definitions",
+        "Static properties without accessors",
+        "Method definitions",
+        "Fully implemented methods",
+        "Methods that must not be implemented"
+      ],
+      "answer": "**Correct:** Method definitions; fully implemented methods (default interface methods)."
+    },
+    {
+      "id": "mix-03",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "LINQ Take and TakeWhile — correct descriptions?",
+      "options": [
+        "TakeWhile takes int",
+        "TakeWhile takes function",
+        "Take takes function",
+        "Both return boolean array",
+        "Take takes int"
+      ],
+      "answer": "**Correct:** TakeWhile takes a function; Take takes an integer."
+    },
+    {
+      "id": "mix-04",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Which types must be disposed explicitly to avoid leaks?",
+      "options": [
+        "StringBuilder",
+        "Array",
+        "FileStream",
+        "SqlConnection",
+        "Drawing.StringBuilder"
+      ],
+      "answer": "**Correct:** FileStream and SqlConnection (IDisposable)"
+    },
+    {
+      "id": "mix-05",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Correct statement about threads in C#?",
+      "options": [
+        "One thread can Sleep another",
+        "Thread.Destroy stops thread",
+        "Thread ctor takes ThreadStart or ParameterizedThreadStart",
+        "Start() callable multiple times",
+        "ParameterizedThreadStart is type-safe"
+      ],
+      "answer": "**Correct:** Thread constructors take ThreadStart or ParameterizedThreadStart delegates."
+    },
+    {
+      "id": "mix-06",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Examples of polymorphism in C#?",
+      "options": [
+        "Parameter type sealed class",
+        "Parameter type static class",
+        "Parameter type reflection class",
+        "Parameter type abstract class",
+        "Parameter type interface"
+      ],
+      "answer": "**Correct:** Abstract class and interface parameter types."
+    },
+    {
+      "id": "mix-07",
+      "category": "csharp",
+      "exam": "csharp",
+      "difficulty": "mid",
+      "question": "Retrieve value for key XYZ from Dictionary<string, object>?",
+      "options": [
+        "items.Get(\"XYZ\")",
+        "items.GetValue(\"XYZ\")",
+        "items[\"XYZ\"]",
+        "GetValue with out",
+        "TryGetValue with out"
+      ],
+      "answer": "**Correct:** items[\"XYZ\"] and items.TryGetValue(\"XYZ\", out item)"
+    }
+  ]
+}

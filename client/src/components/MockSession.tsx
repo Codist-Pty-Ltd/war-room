@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { generateProblem } from "../services/api";
+import { useSessionStore } from "../store/sessionStore";
 import type { MockSessionConfig, Problem } from "../types/domain";
 import MockLoadingPhase from "./MockLoadingPhase";
 import MockActivePhase from "./MockActivePhase";
@@ -23,6 +24,14 @@ type MockSessionProps = {
 
 export default function MockSession({ config, onFinish }: MockSessionProps) {
   const { platform, language, difficulty, count, timeLimitMinutes } = config;
+
+  const startSession = useSessionStore((s) => s.startSession);
+  const recordSolved = useSessionStore((s) => s.recordSolved);
+  const recordSkipped = useSessionStore((s) => s.recordSkipped);
+  const recordHint = useSessionStore((s) => s.recordHint);
+  const endSession = useSessionStore((s) => s.endSession);
+  const resetSession = useSessionStore((s) => s.resetSession);
+  const sessionStartedRef = useRef(false);
 
   const [problems, setProblems] = useState<MockSessionProblem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -104,6 +113,14 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (sessionPhase !== "active" || problems.length === 0 || sessionStartedRef.current) {
+      return;
+    }
+    sessionStartedRef.current = true;
+    startSession(`mock-${platform.id}-${Date.now()}`);
+  }, [sessionPhase, problems.length, platform.id, startSession]);
+
   // Countdown timer
   useEffect(() => {
     if (sessionPhase !== "active") return;
@@ -112,6 +129,7 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
       setRemaining((r) => {
         if (r <= 1) {
           if (timerRef.current != null) clearInterval(timerRef.current);
+          endSession();
           setSessionPhase("review");
           return 0;
         }
@@ -158,16 +176,19 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
     } else {
       recordTime();
       if (timerRef.current != null) clearInterval(timerRef.current);
+      endSession();
       setSessionPhase("review");
     }
   };
 
   const handleSolved = () => {
+    recordSolved();
     markStatus("solved");
     setShowSolution(true);
   };
 
   const handleSkip = () => {
+    recordSkipped();
     markStatus("skipped");
     setShowSolution(true);
   };
@@ -175,6 +196,9 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
   const handleRevealHint = () => {
     const p = problems[currentIndex]?.problem;
     if (!p?.hints?.length || hintIndex >= p.hints.length) return;
+    if (revealedHints.length === 0) {
+      recordHint();
+    }
     const hint = p.hints![hintIndex];
     setRevealedHints((prev) => [...prev, hint]);
     setHintIndex((i) => i + 1);
@@ -183,6 +207,7 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
   const handleEndEarly = () => {
     recordTime();
     if (timerRef.current != null) clearInterval(timerRef.current);
+    endSession();
     setSessionPhase("review");
   };
 
@@ -198,7 +223,10 @@ export default function MockSession({ config, onFinish }: MockSessionProps) {
         language={language}
         remaining={remaining}
         timeLimitMinutes={timeLimitMinutes}
-        onFinish={onFinish}
+        onFinish={() => {
+          resetSession();
+          onFinish();
+        }}
       />
     );
   }

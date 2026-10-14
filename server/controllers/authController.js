@@ -2,13 +2,21 @@ const GuestUser = require("../models/GuestUser");
 const {
   isAppAuthEnabled,
   timingSafeStringEq,
-  createSessionCookie,
-  clearSessionCookie,
   cookieOptions,
-  readSession,
   getSuperUser,
   getSuperPassword,
+  SUPER_MAX_AGE_SEC,
 } = require("../utils/appSession");
+const {
+  recordFailedLogin,
+  clearLoginAttempts,
+} = require("../middleware/rateLimiter");
+
+function readExpressSession(req) {
+  if (!req.session?.username) return null;
+  const role = req.session.role === "guest" ? "guest" : "super";
+  return { username: req.session.username, role };
+}
 
 function status(req, res) {
   const enabled = isAppAuthEnabled();
@@ -16,7 +24,7 @@ function status(req, res) {
     res.json({ authRequired: false, authenticated: true });
     return;
   }
-  const session = readSession(req.headers.cookie);
+  const session = readExpressSession(req);
   res.json({
     authRequired: true,
     authenticated: Boolean(session),
@@ -45,17 +53,34 @@ function login(req, res) {
     timingSafeStringEq(username.trim(), superUser) &&
     timingSafeStringEq(password, expectedPass)
   ) {
-    const { name, value, maxAgeSec } = createSessionCookie(superUser, "super");
-    res.cookie(name, value, { ...cookieOptions(), maxAge: maxAgeSec * 1000 });
-    res.json({ ok: true, role: "super" });
+    void clearLoginAttempts(req);
+    req.session.username = superUser;
+    req.session.role = "super";
+    req.session.cookie.maxAge = SUPER_MAX_AGE_SEC * 1000;
+    req.session.save((err) => {
+      if (err) {
+        console.error("[auth] session.save failed:", err.message);
+        res.status(500).json({
+          error:
+            "Could not create session — is Redis running? Try: docker compose up redis",
+        });
+        return;
+      }
+      res.json({ ok: true, role: "super" });
+    });
     return;
   }
 
   const guest = GuestUser.verifyLogin(username.trim(), password);
   if (!guest) {
-    res.status(401).json({ error: "Invalid username or password" });
+    void recordFailedLogin(req, res).then((blocked) => {
+      if (blocked) return;
+      res.status(401).json({ error: "Invalid username or password" });
+    });
     return;
   }
+
+  void clearLoginAttempts(req);
 
   const remainingMs = new Date(guest.expiresAt).getTime() - Date.now();
   if (remainingMs <= 0) {
@@ -63,17 +88,35 @@ function login(req, res) {
     return;
   }
   const maxAgeSec = Math.max(60, Math.ceil(remainingMs / 1000));
-  const { name, value, maxAgeSec: sec } = createSessionCookie(guest.username, "guest", {
-    maxAgeSec,
+  req.session.username = guest.username;
+  req.session.role = "guest";
+  req.session.cookie.maxAge = maxAgeSec * 1000;
+  req.session.save((err) => {
+    if (err) {
+      console.error("[auth] session.save failed:", err.message);
+      res.status(500).json({
+        error:
+          "Could not create session — is Redis running? Try: docker compose up redis",
+      });
+      return;
+    }
+    res.json({ ok: true, role: "guest" });
   });
-  res.cookie(name, value, { ...cookieOptions(), maxAge: sec * 1000 });
-  res.json({ ok: true, role: "guest" });
 }
 
-function logout(_req, res) {
-  const { name, value } = clearSessionCookie();
-  res.cookie(name, value, { ...cookieOptions(), maxAge: 0 });
-  res.json({ ok: true });
+function logout(req, res) {
+  if (!req.session) {
+    res.json({ ok: true });
+    return;
+  }
+  req.session.destroy((err) => {
+    if (err) {
+      res.status(500).json({ error: "Could not end session" });
+      return;
+    }
+    res.clearCookie("connect.sid", cookieOptions());
+    res.json({ ok: true });
+  });
 }
 
 module.exports = { status, login, logout };

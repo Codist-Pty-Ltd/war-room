@@ -328,3 +328,43 @@ export async function revokeGuestPass(username: string): Promise<void> {
     { method: "DELETE" },
   );
 }
+
+export type {
+  PatternDetail,
+  PatternListItem,
+  PatternSummaryResponse,
+} from "../types/patterns";
+
+export async function fetchPatterns(): Promise<
+  import("../types/patterns").PatternListItem[]
+> {
+  return request("/api/patterns");
+}
+
+export async function fetchPattern(
+  id: string,
+): Promise<import("../types/patterns").PatternDetail> {
+  return request(`/api/patterns/${encodeURIComponent(id)}`);
+}
+
+export async function fetchPatternSummary(): Promise<
+  import("../types/patterns").PatternSummaryResponse
+> {
+  return request("/api/patterns/stats/summary");
+}
+
+export async function logPatternSession(
+  patternId: string,
+  body: {
+    problemIndex: number;
+    solved: boolean;
+    usedHint: boolean;
+    timeSeconds: number;
+  },
+): Promise<void> {
+  await request(`/api/patterns/${encodeURIComponent(patternId)}/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}

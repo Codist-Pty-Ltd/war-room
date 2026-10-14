@@ -1,0 +1,560 @@
+{
+  "product": {
+    "name": "Codist Ops",
+    "slug": "codist-ops",
+    "status": "live",
+    "oneLiner": "Internal DevOps control plane for managing Codist product deployments, server ops, env secrets, and observability across Billable and Codist2 Hetzner servers.",
+    "stack": [
+      ".NET 8",
+      "ASP.NET Core",
+      "MediatR",
+      "EF Core 8",
+      "PostgreSQL 16",
+      "Angular 18",
+      "SignalR",
+      "SSH.NET",
+      "Octokit",
+      "Docker Compose",
+      "GitHub Actions",
+      "Loki",
+      "Prometheus",
+      "Grafana"
+    ],
+    "servers": [
+      { "name": "Billable", "host": "65.109.7.45", "role": "Production apps, monitoring stack, Grafana" },
+      { "name": "Codist2", "host": "162.55.188.252", "role": "Codist Ops stack, EngineIQ, Caddy TLS" }
+    ]
+  },
+  "flashcards": [
+    {
+      "id": "arch-01",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "What architectural pattern is Codist Ops and why not microservices?",
+      "answer": "Modular monolith with Clean Architecture and MediatR CQRS. Single API deployable matches small internal user base and dense integrations (SSH, GitHub, DB, SignalR). Microservices would add network failure modes without scaling benefit.",
+      "followUps": ["Where are bounded contexts?", "What breaks at 10x load?"],
+      "codeExample": ""
+    },
+    {
+      "id": "arch-02",
+      "category": "architecture",
+      "difficulty": "mid",
+      "question": "Draw the request path from browser to Docker on Billable.",
+      "answer": "Browser HTTPS → Caddy on Codist2 → codist-ops-api:5080 → SSH.NET → billable@65.109.7.45:22 → docker ps/stats/logs commands → JSON parsed back to API → Angular UI.",
+      "followUps": ["What user does SSH use?", "Where are keys stored?"],
+      "codeExample": ""
+    },
+    {
+      "id": "arch-03",
+      "category": "architecture",
+      "difficulty": "staff",
+      "question": "What is the single biggest SPOF and blast radius?",
+      "answer": "SSH private keys mounted in API container plus Owner JWT. Compromise yields arbitrary Docker command execution on production servers. No bastion, no command allowlist beyond code paths.",
+      "followUps": ["How would you mitigate?", "What audit exists?"],
+      "codeExample": ""
+    },
+    {
+      "id": "arch-04",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "Why does dashboard show partial data when SSH fails but Servers page errors?",
+      "answer": "GetDashboardQueryHandler uses SafeGet* try/catch returning null/empty. ServersController calls SSH directly and throws ValidationAppException → 400. Intentional degradation for aggregate view vs explicit failure on ops pages.",
+      "followUps": ["Is this good UX?", "How would you add alerting?"],
+      "codeExample": "SafeGetServerStatsAsync in GetDashboardQueryHandler.cs"
+    },
+    {
+      "id": "arch-05",
+      "category": "architecture",
+      "difficulty": "mid",
+      "question": "How are Billable and Codist2 connected to the Ops API?",
+      "answer": "API runs on Codist2 in Docker. Outbound SSH to both servers using per-server config (host, user, key path). Not agent-based — imperative SSH from API process.",
+      "followUps": ["What network does API join for Caddy?", "engineiq_default"],
+      "codeExample": ""
+    },
+    {
+      "id": "backend-01",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What is the startup sequence of the API?",
+      "answer": "Serilog bootstrap → CreateBuilder → Loki sink → AddApiServices → Build → DatabaseInitializer (migrate, seed roles, owner, apps) → middleware pipeline → MapControllers/Hub/Health → Run.",
+      "followUps": ["When do migrations run?", "What if migration fails?"],
+      "codeExample": "Program.cs lines 9-65"
+    },
+    {
+      "id": "backend-02",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "How does deployment status get from GitHub to the database?",
+      "answer": "Trigger creates Deployment (Queued). DeploymentStatusSyncService every 30s loads pending (Queued/Building, <2h old). SyncDeploymentStatusCommand fetches workflow run via Octokit, maps status via DeploymentWorkflowMapper, updates row.",
+      "followUps": ["Why poll not webhook?", "Idempotency?"],
+      "codeExample": "DeploymentStatusSyncService.cs"
+    },
+    {
+      "id": "backend-03",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "How does GitHub deployment import avoid duplicates?",
+      "answer": "ExistsByWorkflowRunIdAsync checks AppId + WorkflowRunId before CreateAsync. Skips existing runs. Idempotent on workflow run ID not commit hash.",
+      "followUps": ["What failed in production import?", "varchar(500) commit message"],
+      "codeExample": "ImportDeploymentsFromGitHubCommand.cs"
+    },
+    {
+      "id": "backend-04",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What roles exist and what can Viewer do?",
+      "answer": "Owner, Admin, Viewer. Viewer: dashboard, apps list/detail read, deployments read, servers read. Cannot: env vars, observability, team, deploy trigger, restart containers.",
+      "followUps": ["How enforced?", "JWT role claim"],
+      "codeExample": "[Authorize(Roles = \"Owner,Admin,Viewer\")]"
+    },
+    {
+      "id": "backend-05",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "Explain the error HTTP status mapping.",
+      "answer": "UnauthorizedAppException 401, ValidationAppException 400, NotFoundAppException 404, SshOperationException 502, other 500 with generic message in Production. JSON body: error + correlationId.",
+      "followUps": ["ActiveUserMiddleware 401 body?", "Empty body"],
+      "codeExample": "GlobalExceptionHandlerMiddleware.cs"
+    },
+    {
+      "id": "backend-06",
+      "category": "backend",
+      "difficulty": "staff",
+      "question": "Where is the N+1 query risk on dashboard load?",
+      "answer": "GetDashboardQueryHandler loops apps calling GetLatestByAppIdAsync per app — 6 apps = 6 queries. Should batch with single query grouped by AppId or include in GetAllForDashboardAsync.",
+      "followUps": ["EF Include strategy?", "Fix?"],
+      "codeExample": "GetDashboardQueryHandler Handle method foreach"
+    },
+    {
+      "id": "backend-07",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "How are env var secrets stored?",
+      "answer": "AES-256-GCM via EncryptionService. Key SHA256 from Encryption:Key config. Nonce+ciphertext+tag base64 in EnvVariables.EncryptedValue. Push to server decrypts and writes plaintext .env over SSH.",
+      "followUps": ["What if Encryption:Key lost?", "Data unrecoverable"],
+      "codeExample": "EncryptionService.cs Encrypt method"
+    },
+    {
+      "id": "backend-08",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "How does SignalR log streaming authenticate?",
+      "answer": "JWT Bearer with access_token query param on /hubs/logs (WebSocket limitation). LogStreamHub [Authorize]. LogStreamManager opens SSH stream when client joins group.",
+      "followUps": ["XSS risk?", "Refcounting?"],
+      "codeExample": "ServiceCollectionExtensions JWT events"
+    },
+    {
+      "id": "backend-09",
+      "category": "backend",
+      "difficulty": "junior",
+      "question": "What ORM and database provider?",
+      "answer": "Entity Framework Core 8 with Npgsql provider to PostgreSQL 16.",
+      "followUps": ["Migration count?", "One InitialCreate"],
+      "codeExample": ""
+    },
+    {
+      "id": "backend-10",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "What happens when container name doesn't match app slug?",
+      "answer": "ResolveContainerStatus returns NotFound with message 'No matching container found on server.' Matching uses Contains on LinuxUser or Slug — heuristic not Docker labels.",
+      "followUps": ["War Room container name?", "warroom-client"],
+      "codeExample": "ResolveContainerStatus"
+    },
+    {
+      "id": "frontend-01",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "How is auth state managed in Angular?",
+      "answer": "JWT in localStorage key codist_ops_token. AuthService BehaviorSubject currentUser$. Client-side JWT decode for role/expiry. jwtInterceptor attaches Bearer header.",
+      "followUps": ["401 handling?", "errorInterceptor logout"],
+      "codeExample": "auth.service.ts"
+    },
+    {
+      "id": "frontend-02",
+      "category": "frontend",
+      "difficulty": "senior",
+      "question": "Why was environment.prod.ts apiUrl fix critical?",
+      "answer": "Was https://ops.codist.co.za/api but ApiService also prefixes /api → double /api/api/ paths. Fixed to https://ops.codist.co.za base only.",
+      "followUps": ["Docker build implication?", "Baked at build time"],
+      "codeExample": "environment.prod.ts"
+    },
+    {
+      "id": "frontend-03",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "How are routes lazy loaded?",
+      "answer": "Angular 18 loadComponent on each route — no NgModules. authGuard on shell children; roleGuard with route.data.roles for observability, team, audit, settings.",
+      "followUps": ["Default redirect?", "** → dashboard"],
+      "codeExample": "app.routes.ts"
+    },
+    {
+      "id": "frontend-04",
+      "category": "frontend",
+      "difficulty": "senior",
+      "question": "Why no NgRx?",
+      "answer": "Small internal app; server state refetched per navigation; local BehaviorSubject sufficient. Avoids boilerplate for low-complexity global state (auth, toasts only).",
+      "followUps": ["When would you add it?", "Cross-page cache"],
+      "codeExample": ""
+    },
+    {
+      "id": "frontend-05",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "What happens on session expiry mid-use?",
+      "answer": "errorInterceptor catches 401 on non-auth endpoints → AuthService.logout → toast Session expired → navigate /login.",
+      "followUps": ["SignalR reconnect?", "Separate token check"],
+      "codeExample": "error.interceptor.ts"
+    },
+    {
+      "id": "database-01",
+      "category": "database",
+      "difficulty": "senior",
+      "question": "What indexes exist on Deployments and why?",
+      "answer": "IX_Deployments_AppId (FK lookups), IX_Deployments_Status (pending sync filter), IX_Deployments_StartedAt (recent/history ordering). Missing composite AppId+StartedAt for latest-by-app.",
+      "followUps": ["Unique on WorkflowRunId?", "Not yet"],
+      "codeExample": "CodistOpsDbContext OnModelCreating"
+    },
+    {
+      "id": "database-02",
+      "category": "database",
+      "difficulty": "mid",
+      "question": "What cascades on App delete?",
+      "answer": "Deployments and EnvVariables cascade delete. AuditLog UserId is Restrict — cannot delete user with audit entries easily.",
+      "followUps": ["Soft delete apps?", "IsActive flag"],
+      "codeExample": ""
+    },
+    {
+      "id": "database-03",
+      "category": "database",
+      "difficulty": "staff",
+      "question": "What's wrong with GetSuccessRateLast30DaysAsync at scale?",
+      "answer": "ToListAsync all completed deployments then Count in memory — O(n) RAM. Should use two CountAsync SQL aggregations.",
+      "followUps": ["Refactor SQL?", "GROUP BY status"],
+      "codeExample": "DeploymentRepository.cs line 156"
+    },
+    {
+      "id": "devops-01",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "Trace deploy from git push to live.",
+      "answer": "Push main → build-api + build-ui parallel Docker push GHCR → deploy job SSH docker compose pull up -d → sleep 20 → curl localhost:5080/health.",
+      "followUps": ["Rollback?", "Manual sha tag"],
+      "codeExample": ".github/workflows/deploy.yml"
+    },
+    {
+      "id": "devops-02",
+      "category": "devops",
+      "difficulty": "senior",
+      "question": "Is deploy zero-downtime?",
+      "answer": "No. docker compose up -d recreates containers — brief API unavailability. No blue/green or rolling update.",
+      "followUps": ["Improve?", "Health check gate + second instance"],
+      "codeExample": ""
+    },
+    {
+      "id": "devops-03",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "What must be on server besides .env?",
+      "answer": "docker-compose.override.yml with keys volume ./keys:/keys:ro and engineiq_default network. SSH key files in keys/ chmod 600.",
+      "followUps": ["Billable SSH user?", "billable not root"],
+      "codeExample": "deploy/codist2/docker-compose.override.example.yml"
+    },
+    {
+      "id": "devops-04",
+      "category": "devops",
+      "difficulty": "junior",
+      "question": "What CI checks run before merge?",
+      "answer": "None configured — only deploy workflow on main. No PR test/build gate in repo.",
+      "followUps": ["Risk?", "Untested code to prod"],
+      "codeExample": ""
+    },
+    {
+      "id": "security-01",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "JWT structure and expiry?",
+      "answer": "HMAC-SHA256. Claims: userId, email, role, sub, jti. ExpiryHours default 8. No audience validation. MapInboundClaims false.",
+      "followUps": ["Refresh token?", "No — ActiveUserMiddleware"],
+      "codeExample": "JwtTokenService.cs"
+    },
+    {
+      "id": "security-02",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "OWASP: biggest XSS impact here?",
+      "answer": "JWT in localStorage — stolen via XSS gives full role until expiry. SignalR query token same risk.",
+      "followUps": ["Mitigation?", "httpOnly cookie + CSRF"],
+      "codeExample": ""
+    },
+    {
+      "id": "security-03",
+      "category": "security",
+      "difficulty": "mid",
+      "question": "Who can push env vars to production servers?",
+      "answer": "Owner only — POST /api/apps/{id}/env/push [Authorize(Roles = Owner)].",
+      "followUps": ["Encryption at rest?", "AES-GCM"],
+      "codeExample": ""
+    },
+    {
+      "id": "trade-01",
+      "category": "trade-offs",
+      "difficulty": "senior",
+      "question": "Why poll GitHub instead of webhooks?",
+      "answer": "No inbound webhook endpoint/firewall config on internal MVP. 30s staleness acceptable. Simpler than HMAC webhook verification and retry logic.",
+      "followUps": ["Rate limits?", "Octokit org token"],
+      "codeExample": ""
+    },
+    {
+      "id": "trade-02",
+      "category": "trade-offs",
+      "difficulty": "senior",
+      "question": "Why anemic domain entities?",
+      "answer": "Speed — app is integration-heavy CRUD. Business rules in handlers (import, sync, dashboard matching). Acceptable for internal tool; would enrich if deployment state machine grows rules.",
+      "followUps": ["DDD aggregate?", "App owns Deployments informally"],
+      "codeExample": ""
+    },
+    {
+      "id": "trade-03",
+      "category": "trade-offs",
+      "difficulty": "staff",
+      "question": "What would you remove from codebase?",
+      "answer": "Dual invite tables, Hetzner stub, hardcoded Grafana URLs, ConsoleEmailSender in production path without real email.",
+      "followUps": ["Migration plan for invites?", "Consolidate to PendingInvite"],
+      "codeExample": ""
+    },
+    {
+      "id": "beh-01",
+      "category": "behavioural",
+      "difficulty": "senior",
+      "question": "Describe a production incident you fixed.",
+      "answer": "SSH keys not mounted post-deploy — dashboard NotFound. Diagnosed via API logs ValidationAppException. Fixed keys volume, billable user, restarted API.",
+      "followUps": ["Detection gap?", "No alerting on SSH failures"],
+      "codeExample": ""
+    },
+    {
+      "id": "beh-02",
+      "category": "behavioural",
+      "difficulty": "mid",
+      "question": "Quality vs speed trade-off on this project?",
+      "answer": "Shipped without tests but Clean Architecture interfaces allow later unit tests. Documented ONBOARDING for team self-service.",
+      "followUps": ["First tests you'd add?", "DeploymentWorkflowMapper"],
+      "codeExample": ""
+    },
+    {
+      "id": "arch-06",
+      "category": "architecture",
+      "difficulty": "mid",
+      "question": "What external services does API call on dashboard load?",
+      "answer": "2 SSH sessions (stats+containers) × 2 servers + N HTTP health checks + multiple DB queries. Potentially 10+ network round trips per refresh.",
+      "followUps": ["Cache strategy?", "IMemoryCache 30s"],
+      "codeExample": ""
+    },
+    {
+      "id": "backend-11",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What is MediatR used for?",
+      "answer": "CQRS dispatch — controllers send Commands/Queries to handlers. Decouples HTTP from business logic. Enables future pipeline behaviors for validation/logging.",
+      "followUps": ["Pipeline behaviors today?", "None registered"],
+      "codeExample": "LoginCommandHandler"
+    },
+    {
+      "id": "frontend-06",
+      "category": "frontend",
+      "difficulty": "junior",
+      "question": "Angular version and standalone components?",
+      "answer": "Angular 18.2 standalone — bootstrapApplication, no NgModules, functional guards/interceptors.",
+      "followUps": ["Build tool?", "esbuild application builder"],
+      "codeExample": "main.ts"
+    },
+    {
+      "id": "database-04",
+      "category": "database",
+      "difficulty": "mid",
+      "question": "Backup strategy for PostgreSQL?",
+      "answer": "Docker volume postgres_data on host only — no automated backup in repo. Loss of volume loses deployments, env ciphertext, audit log.",
+      "followUps": ["Recovery?", "Manual volume backup pg_dump"],
+      "codeExample": ""
+    },
+    {
+      "id": "devops-05",
+      "category": "devops",
+      "difficulty": "senior",
+      "question": "Where does monitoring run vs Ops app?",
+      "answer": "Monitoring (Loki/Prometheus/Grafana) intended on Billable. Codist Ops API/UI on Codist2. Codist2 Promtail ships logs to Billable Loki.",
+      "followUps": ["Grafana DNS?", "grafana.ops.codist.co.za was missing"],
+      "codeExample": ""
+    },
+    {
+      "id": "security-04",
+      "category": "security",
+      "difficulty": "staff",
+      "question": "Rate limiting strategy?",
+      "answer": "None — internal tool low traffic. Risk if exposed publicly or token leaked — brute force login unthrottled.",
+      "followUps": ["Add where first?", "Login endpoint"],
+      "codeExample": ""
+    },
+    {
+      "id": "trade-04",
+      "category": "trade-offs",
+      "difficulty": "mid",
+      "question": "Why AES-GCM for env vars not database TDE?",
+      "answer": "Application-level encryption allows key rotation independent of Postgres; ciphertext useless without Encryption:Key even with DB dump.",
+      "followUps": ["Key rotation process?", "Not documented — manual re-encrypt"],
+      "codeExample": ""
+    }
+  ],
+  "systemDesignTopics": [
+    {
+      "topic": "Multi-tenancy",
+      "currentImplementation": "Single Codist org — no tenant isolation",
+      "seniorInsight": "Would add TenantId FK + global query filter + tenant claim in JWT before any SaaS externalization",
+      "interviewQuestion": "How would you isolate Customer A from seeing Customer B deployments?"
+    },
+    {
+      "topic": "Real-time dashboard",
+      "currentImplementation": "Polling via page load and 30s dashboard refresh pattern",
+      "seniorInsight": "SignalR hub already exists for logs — extend with cached metrics push every 15s from background service",
+      "interviewQuestion": "How would you show live CPU without hammering SSH?"
+    },
+    {
+      "topic": "Deployment webhooks",
+      "currentImplementation": "30s poll DeploymentStatusSyncService",
+      "seniorInsight": "GitHub webhook + HMAC signature verification + idempotent handler replaces poll; needs public HTTPS endpoint",
+      "interviewQuestion": "Design webhook ingestion for workflow_run completed events"
+    },
+    {
+      "topic": "Caching layer",
+      "currentImplementation": "None",
+      "seniorInsight": "IMemoryCache for SSH results keyed by server with 30s TTL — biggest latency win for dashboard",
+      "interviewQuestion": "What would you cache and how invalidate on container restart?"
+    },
+    {
+      "topic": "Observability",
+      "currentImplementation": "Serilog→Loki, proxy queries, Grafana iframes",
+      "seniorInsight": "Missing RED metrics on API itself; SSH failure rate should be a Prometheus counter with alert",
+      "interviewQuestion": "How would you know SSH silently failed for 24 hours?"
+    },
+    {
+      "topic": "Secrets management",
+      "currentImplementation": ".env on disk + AES-GCM in DB",
+      "seniorInsight": "Production-grade would use Vault or cloud KMS; SSH keys should be short-lived via SSH certificate authority",
+      "interviewQuestion": "How rotate Encryption:Key without downtime?"
+    },
+    {
+      "topic": "High availability",
+      "currentImplementation": "Single API + single Postgres container",
+      "seniorInsight": "Postgres streaming replica for read path; dual API behind Caddy load balance requires SignalR Redis backplane",
+      "interviewQuestion": "Make Ops portal survive Codist2 host failure"
+    },
+    {
+      "topic": "Audit completeness",
+      "currentImplementation": "AuditService on selected actions",
+      "seniorInsight": "EF SaveChanges interceptor captures all mutations with before/after JSON — queryable compliance trail",
+      "interviewQuestion": "Prove who changed env var X at time T"
+    },
+    {
+      "topic": "Feature flags",
+      "currentImplementation": "None — IsActive on apps only",
+      "seniorInsight": "Config-driven flags for Grafana embed, Hetzner integration, import batch size without redeploy",
+      "interviewQuestion": "Roll out observability tab to Owners only first"
+    },
+    {
+      "topic": "Mobile client",
+      "currentImplementation": "Responsive web only",
+      "seniorInsight": "Same REST API; need refresh tokens, push notifications on deploy complete via webhook→FCM",
+      "interviewQuestion": "What API changes for native iOS app?"
+    }
+  ],
+  "behaviouralAnchors": [
+    {
+      "question": "Tell me about a difficult technical decision with incomplete information",
+      "situation": "Deploying Codist Ops to production on new Codist2 server while Billable already hosted apps and monitoring",
+      "task": "Choose hosting without disrupting existing stacks",
+      "action": "Deployed Ops to Codist2, connected to Caddy via external Docker network engineiq_default, kept Loki/Grafana on Billable",
+      "result": "ops.codist.co.za live without migrating EngineIQ or customer apps",
+      "seniorSignal": "Evaluated network topology and blast radius rather than defaulting to same server as monitoring"
+    },
+    {
+      "question": "Tell me about a production incident",
+      "situation": "Dashboard showed NotFound for all apps and 0% CPU after successful deploy",
+      "task": "Restore infrastructure visibility for team",
+      "action": "API logs showed SSH key path missing; copied keys, fixed .env user/paths, added compose volume mount, restarted API",
+      "result": "SSH operations succeeded within one restart; server health populated",
+      "seniorSignal": "Correlated browser 400s with backend ValidationAppException rather than assuming apps were down"
+    },
+    {
+      "question": "Tell me about balancing quality and speed",
+      "situation": "Internal MVP deadline for Codist Ops portal",
+      "task": "Deliver usable deploy/ops surface quickly",
+      "action": "Shipped Clean Architecture seams without test projects; wrote ONBOARDING.md for operational runbooks",
+      "result": "Team uses production portal daily; test debt explicitly documented",
+      "seniorSignal": "Named the debt and preserved testability boundaries instead of skipping structure entirely"
+    },
+    {
+      "question": "Tell me about the most complex feature you built",
+      "situation": "Need live Docker logs in browser without kubectl/port-forward culture",
+      "task": "Stream container logs to Angular UI",
+      "action": "SignalR hub + SSH.NET follow mode + subscriber refcounting in LogStreamManager + JWT query param auth",
+      "result": "Owners/Admins view live logs from Servers and App detail pages",
+      "seniorSignal": "Integrated three protocols (HTTPS, WSS, SSH) with lifecycle management"
+    },
+    {
+      "question": "Tell me about improving system behavior under failure",
+      "situation": "SSH timeouts blocked entire dashboard when one server unreachable",
+      "task": "Keep dashboard usable with partial infrastructure data",
+      "action": "Wrapped SSH calls in SafeGet* helpers returning null/empty on failure for aggregate query only",
+      "result": "Dashboard loads with partial stats; detail pages still surface errors explicitly",
+      "seniorSignal": "Differentiated aggregate degradation from operational error propagation intentionally"
+    },
+    {
+      "question": "Tell me about a bug from GitHub/import work",
+      "situation": "Sync from GitHub returned 500 mid-import; War Room showed Never deployed",
+      "task": "Fix import reliability",
+      "action": "PostgreSQL logs showed varchar(500) overflow on CommitMessage; added truncation in import handler",
+      "result": "Import completes all apps including War Room after redeploy",
+      "seniorSignal": "Traced 500 to DB constraint not GitHub API failure"
+    },
+    {
+      "question": "Tell me about disagreeing with an approach",
+      "situation": "Production .env configured Billable SSH as root with placeholder key paths",
+      "task": "Align config with actual server hardening",
+      "action": "Insisted on billable user and documented /keys mount in .env.example and compose override",
+      "result": "SSH authentication succeeds with least privilege on Billable",
+      "seniorSignal": "Connected security convention on server with application configuration"
+    }
+  ],
+  "dangerZones": [
+    {
+      "area": "JWT in localStorage",
+      "risk": "XSS steals 8h Owner token with full infrastructure access",
+      "whatJuniorSays": "We use JWT for authentication",
+      "whatSeniorSays": "JWT in localStorage with 8h expiry and no refresh — XSS is full account compromise until expiry; ActiveUserMiddleware revokes deactivated users but not stolen tokens; would move to httpOnly cookie + CSRF for production hardening"
+    },
+    {
+      "area": "SSH keys in API container",
+      "risk": "API RCE or Owner JWT forgery equals root/billable on production servers",
+      "whatJuniorSays": "The API connects to servers via SSH",
+      "whatSeniorSays": "The API mounts long-lived private keys read-only and opens new SSH sessions per request — blast radius is total Docker control; mitigation today is RBAC and audit log, not network isolation or command allowlisting"
+    },
+    {
+      "area": "Dashboard NotFound vs app down",
+      "risk": "Misdiagnose SSH misconfiguration as application outage",
+      "whatJuniorSays": "The app status is NotFound so the app isn't running",
+      "whatSeniorSays": "NotFound means container name heuristic failed or SSH failed silently on dashboard — check API logs for ValidationAppException and verify keys before restarting customer containers"
+    },
+    {
+      "area": "Health check vs container status",
+      "risk": "Green container + red health or vice versa",
+      "whatJuniorSays": "Health check failed so deployment failed",
+      "whatSeniorSays": "Container matching and HTTP health are independent signals — The Record can show NotFound or health 404 if /health path wrong while container runs; diagnose each path separately"
+    },
+    {
+      "area": "No tests in CI",
+      "risk": "Regression ships to production on every main push",
+      "whatJuniorSays": "We test manually before pushing",
+      "whatSeniorSays": "Deploy workflow is build-push-SSH with health check only — no unit/integration gate; varchar truncation and double /api URL class of bugs reach prod; would add dotnet test and ng test before merge as minimum bar"
+    }
+  ]
+}

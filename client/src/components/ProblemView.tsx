@@ -11,6 +11,7 @@ import ProblemActions from "./ProblemActions";
 import SolutionDetails from "./SolutionDetails";
 import SeniorWisdom from "./SeniorWisdom";
 import { logSession } from "../services/api";
+import { useSessionStore } from "../store/sessionStore";
 import type { Language, Platform, Problem } from "../types/domain";
 import type { UseTimerReturn } from "../hooks/useTimer";
 
@@ -41,6 +42,13 @@ export default function ProblemView({
   markSkipped,
   onNext,
 }: ProblemViewProps) {
+  const recordSolved = useSessionStore((s) => s.recordSolved);
+  const recordSkipped = useSessionStore((s) => s.recordSkipped);
+  const recordHint = useSessionStore((s) => s.recordHint);
+  const stopSessionTimer = useSessionStore((s) => s.stopTimer);
+  const endSession = useSessionStore((s) => s.endSession);
+  const setCurrentProblem = useSessionStore((s) => s.setCurrentProblem);
+
   const [revealedHints, setRevealedHints] = useState<string[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
   const [showFull, setShowFull] = useState(false);
@@ -64,6 +72,7 @@ export default function ProblemView({
         outcome: "hinted",
         hintsUsed: 1,
       });
+      recordHint();
       markHinted();
     }
     setRevealedHints((prev) => [...prev, hints[hintIndex]]);
@@ -76,8 +85,17 @@ export default function ProblemView({
       outcome: "solved",
       hintsUsed: revealedHints.length,
     });
-    timer.stop();
+    recordSolved();
+    stopSessionTimer();
+    endSession();
     markSolved();
+    setCurrentProblem({
+      id: String(problemId ?? problem.title),
+      title: problem.title,
+      description: problem.description,
+      difficulty: problem.difficulty,
+      platform: platform.name,
+    });
     setShowFull(true);
   };
 
@@ -87,7 +105,9 @@ export default function ProblemView({
       outcome: "skipped",
       hintsUsed: revealedHints.length,
     });
-    timer.stop();
+    recordSkipped();
+    stopSessionTimer();
+    endSession();
     markSkipped();
     setShowFull(true);
   };

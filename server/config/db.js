@@ -79,6 +79,29 @@ function initDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_app_guest_users_expires ON app_guest_users(expires_at);
+
+    CREATE TABLE IF NOT EXISTS pattern_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pattern_id TEXT NOT NULL,
+      pattern_name TEXT NOT NULL,
+      problem_index INTEGER NOT NULL,
+      solved INTEGER DEFAULT 0,
+      used_hint INTEGER DEFAULT 0,
+      time_seconds INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pattern_progress (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pattern_id TEXT NOT NULL UNIQUE,
+      problems_attempted INTEGER DEFAULT 0,
+      problems_solved INTEGER DEFAULT 0,
+      last_drilled DATETIME,
+      mastery_level INTEGER DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pattern_sessions_pattern ON pattern_sessions(pattern_id);
+    CREATE INDEX IF NOT EXISTS idx_pattern_sessions_created ON pattern_sessions(created_at);
   `);
 
   try {

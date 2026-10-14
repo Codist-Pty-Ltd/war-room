@@ -16,27 +16,32 @@ import Certifications from "./pages/Certifications";
 import NtokozoMastery from "./pages/NtokozoMastery";
 import ConsoleLab from "./pages/ConsoleLab";
 import BrainTraining from "./pages/BrainTraining";
+import PatternDrill from "./components/PatternDrill";
 import { PLATFORMS } from "./constants/platforms";
 import { useStats } from "./hooks/useStats";
-import { useTimer } from "./hooks/useTimer";
+import { usePracticeTimer } from "./hooks/usePracticeTimer";
 import { fetchSummary } from "./services/api";
+import { useSessionStore } from "./store/sessionStore";
 import type { Language, Platform, Problem } from "./types/domain";
 
 function WarRoomApp() {
   const [screen, setScreen] = useState("platform");
   const [platform, setPlatform] = useState<Platform | null>(null);
-  const [language, setLanguage] = useState<Language | null>(null);
-  const [problem, setProblem] = useState<Problem | null>(null);
+  const [, setLanguage] = useState<Language | null>(null);
+  const problemDetail = useSessionStore((s) => s.problemDetail);
+  const practiceMeta = useSessionStore((s) => s.practiceMeta);
+  const setPracticeProblem = useSessionStore((s) => s.setPracticeProblem);
+  const clearPracticeProblem = useSessionStore((s) => s.clearPracticeProblem);
+  const startSession = useSessionStore((s) => s.startSession);
+  const resetSession = useSessionStore((s) => s.resetSession);
+  const endSession = useSessionStore((s) => s.endSession);
   const [screeningQuestion, setScreeningQuestion] = useState(null);
   const [screeningCategory, setScreeningCategory] = useState(null);
   const [screeningType, setScreeningType] = useState(null);
   const [mockConfig, setMockConfig] = useState(null);
   const [configInitialCategory, setConfigInitialCategory] = useState<string | null>(null);
-  const [attemptCategory, setAttemptCategory] = useState("");
-  const [attemptDifficulty, setAttemptDifficulty] = useState("");
-  const [attemptProblemId, setAttemptProblemId] = useState<number | undefined>(undefined);
   const { stats, setStats, markSolved, markHinted, markSkipped } = useStats();
-  const timer = useTimer();
+  const timer = usePracticeTimer();
 
   useEffect(() => {
     fetchSummary()
@@ -58,8 +63,9 @@ function WarRoomApp() {
     config?: { platform?: string; category?: string },
   ) => {
     timer.stop();
+    endSession();
     if (nextScreen === "config") {
-      setProblem(null);
+      clearPracticeProblem();
       setLanguage(null);
     }
     if (config?.platform) {
@@ -79,6 +85,7 @@ function WarRoomApp() {
 
   const handleDashboard = () => {
     timer.stop();
+    endSession();
     setScreen("dashboard");
   };
 
@@ -90,12 +97,10 @@ function WarRoomApp() {
 
   const handleBackToPlatforms = () => {
     setPlatform(null);
-    setProblem(null);
+    clearPracticeProblem();
+    resetSession();
     setLanguage(null);
     setConfigInitialCategory(null);
-    setAttemptCategory("");
-    setAttemptDifficulty("");
-    setAttemptProblemId(undefined);
     setScreen("platform");
     timer.stop();
   };
@@ -113,27 +118,24 @@ function WarRoomApp() {
     difficulty: string;
     problemId: number;
   }) => {
-    setProblem(nextProblem);
     setLanguage(nextLanguage);
-    setAttemptCategory(category);
-    setAttemptDifficulty(difficulty);
-    setAttemptProblemId(problemId);
+    setPracticeProblem(nextProblem, platform!, nextLanguage, category, difficulty, problemId);
+    startSession(`practice-${problemId}`);
     setScreen("problem");
     timer.start();
   };
 
   const handleNextProblem = () => {
-    setProblem(null);
-    setAttemptCategory("");
-    setAttemptDifficulty("");
-    setAttemptProblemId(undefined);
+    clearPracticeProblem();
+    endSession();
     setScreen("config");
     timer.stop();
   };
 
   const handleViewHistory = () => {
-    setProblem(null);
+    clearPracticeProblem();
     timer.stop();
+    endSession();
     setScreen("history");
   };
 
@@ -162,12 +164,10 @@ function WarRoomApp() {
     difficulty: string;
     problemId: number;
   }) => {
-    setProblem(savedProblem);
     setPlatform(savedPlatform);
     setLanguage(savedLanguage);
-    setAttemptCategory(category);
-    setAttemptDifficulty(difficulty);
-    setAttemptProblemId(problemId);
+    setPracticeProblem(savedProblem, savedPlatform, savedLanguage, category, difficulty, problemId);
+    startSession(`practice-${problemId}`);
     setScreen("problem");
     timer.start();
   };
@@ -213,6 +213,7 @@ function WarRoomApp() {
 
   const handleMockFinish = () => {
     setMockConfig(null);
+    resetSession();
     setScreen("platform");
   };
 
@@ -240,6 +241,11 @@ function WarRoomApp() {
     setScreen("brainLab");
   };
 
+  const handlePatternDrill = () => {
+    timer.stop();
+    setScreen("patterns");
+  };
+
   return (
     <div
       style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}
@@ -259,6 +265,7 @@ function WarRoomApp() {
         onMastery={handleMastery}
         onConsoleLab={handleConsoleLab}
         onBrainLab={handleBrainLab}
+        onPatternDrill={handlePatternDrill}
         screen={screen}
       />
       {screen === "certs" && <Certifications onBack={handleBackToPlatforms} />}
@@ -282,14 +289,14 @@ function WarRoomApp() {
           onBack={handleBackToPlatforms}
         />
       )}
-      {screen === "problem" && problem && platform && language && (
+      {screen === "problem" && problemDetail && practiceMeta && (
         <ProblemView
-          problem={problem}
-          platform={platform}
-          language={language}
-          category={attemptCategory}
-          difficulty={attemptDifficulty}
-          problemId={attemptProblemId}
+          problem={problemDetail}
+          platform={practiceMeta.platform}
+          language={practiceMeta.language}
+          category={practiceMeta.category}
+          difficulty={practiceMeta.difficulty}
+          problemId={practiceMeta.problemId}
           timer={timer}
           markSolved={markSolved}
           markHinted={markHinted}
@@ -322,6 +329,7 @@ function WarRoomApp() {
       {screen === "mastery" && <NtokozoMastery onBack={handleBackToPlatforms} />}
       {screen === "consoleLab" && <ConsoleLab onBack={handleBackToPlatforms} />}
       {screen === "brainLab" && <BrainTraining onBack={handleBackToPlatforms} />}
+      {screen === "patterns" && <PatternDrill onBack={handleBackToPlatforms} />}
     </div>
   );
 }

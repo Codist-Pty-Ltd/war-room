@@ -10,6 +10,15 @@ import {
   PRODUCTION_INCIDENTS_TRACK,
   SYSTEM_DESIGN_TRACK,
 } from "./ntokozoMasteryExtended2";
+import { CODIST_OPS_TRACK } from "./codistOpsMastery";
+import { THE_RECORD_TRACK } from "./theRecordMastery";
+import { MAEMO_TRACK } from "./maemoMastery";
+import { ENGINEIQ_TRACK } from "./engineIqMastery";
+import {
+  IKM_CSHARP_TRACK,
+  IKM_FULLSTACK_TRACK,
+  IKM_TECHCHECK_TRACK,
+} from "./ikmTechCheckMastery";
 
 // NTOKOZO BANDA — Personal mastery drill content.
 //
@@ -2399,4 +2408,11 @@ export const NTOKOZO_TRACKS: MasteryTrack[] = [
   API_DESIGN_TRACK,
   PRODUCTION_INCIDENTS_TRACK,
   SYSTEM_DESIGN_TRACK,
+  CODIST_OPS_TRACK,
+  THE_RECORD_TRACK,
+  MAEMO_TRACK,
+  ENGINEIQ_TRACK,
+  IKM_CSHARP_TRACK,
+  IKM_FULLSTACK_TRACK,
+  IKM_TECHCHECK_TRACK,
 ];

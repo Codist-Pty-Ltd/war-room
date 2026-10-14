@@ -1,9 +1,14 @@
 import { INVESTEC_CONSOLE_CHALLENGES } from "./investecConsole";
 import { MORE_CONSOLE_CHALLENGES } from "./moreConsoleChallenges";
+import { WAYMARK_CONSOLE_CHALLENGES } from "./waymarkConsole";
 import { SYSTEM_DESIGN_CHALLENGES } from "./systemDesignChallenges";
 import { enrichDesignChallenge } from "./designApproaches";
 
-export const CONSOLE_CHALLENGES = [...INVESTEC_CONSOLE_CHALLENGES, ...MORE_CONSOLE_CHALLENGES];
+export const CONSOLE_CHALLENGES = [
+  ...WAYMARK_CONSOLE_CHALLENGES,
+  ...INVESTEC_CONSOLE_CHALLENGES,
+  ...MORE_CONSOLE_CHALLENGES,
+];
 
 export const ENRICHED_SYSTEM_DESIGN = SYSTEM_DESIGN_CHALLENGES.map(enrichDesignChallenge);
 

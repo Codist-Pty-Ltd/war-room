@@ -17,6 +17,7 @@ export default function Header({
   onMastery,
   onConsoleLab,
   onBrainLab,
+  onPatternDrill,
   screen,
 }) {
   const authSurface = useContext(AuthSurfaceContext);
@@ -164,6 +165,22 @@ export default function Header({
           }}
         >
           BRAIN LAB
+        </button>
+        <button
+          type="button"
+          onClick={onPatternDrill}
+          style={{
+            ...navBtnStyle(screen === "patterns", "#7c3aed"),
+            color: "#a78bfa",
+            fontWeight: 700,
+            border:
+              screen === "patterns" ? "1px solid #7c3aed" : "1px solid #7c3aed55",
+            borderRadius: "4px",
+            padding: "4px 10px",
+            background: screen === "patterns" ? "#7c3aed22" : "#7c3aed10",
+          }}
+        >
+          PATTERN DRILLS
         </button>
         <button
           type="button"

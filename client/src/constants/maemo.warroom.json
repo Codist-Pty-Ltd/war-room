@@ -1,0 +1,354 @@
+{
+  "product": {
+    "name": "Maemo Compliance",
+    "slug": "maemo-compliance",
+    "status": "live",
+    "oneLiner": "Multi-tenant ISO/SHEQ/POPIA compliance SaaS for South African organisations, splitting from a .NET monolith into identity, engine, workers, and Angular/Next frontends on Hetzner.",
+    "stack": [
+      ".NET 8",
+      "ASP.NET Core Minimal APIs",
+      "EF Core 8 + PostgreSQL 16",
+      "MediatR + FluentValidation",
+      "Angular 19–20",
+      "Next.js 14",
+      "Docker + GHCR + GitHub Actions",
+      "Hetzner + nginx loopback"
+    ],
+    "servers": [
+      { "host": "65.109.7.45", "role": "production", "services": ["maemo-compliance", "maemo-identity", "split stacks in progress"] }
+    ]
+  },
+  "flashcards": [
+    {
+      "id": "arch-01",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "What architectural pattern is Maemo Compliance today, and why?",
+      "answer": "Production is a modular monolith (single API host for portal + engine + admin + public routes) organised as Clean Architecture with CQRS via MediatR. Split repos (identity, engine, workers) deploy in parallel for blast-radius and independent CI; nginx cutover is host-by-host because full microservice cutover before DB/auth split would multiply failure modes.",
+      "followUps": ["What breaks if you split API before splitting Postgres?", "Where are bounded contexts today?"],
+      "codeExample": "MaemoCompliance.Api/Program.cs — SmartJwt + TenantMiddleware pipeline"
+    },
+    {
+      "id": "arch-02",
+      "category": "architecture",
+      "difficulty": "staff",
+      "question": "What fails first at 10x load?",
+      "answer": "Single PostgreSQL write node on Hetzner — connection count and write-heavy audit/NCR/document saves. Second: monolith API CPU if workers and API share one VM. Third: Resend rate limits on email bursts. Not the Angular static frontends.",
+      "followUps": ["PgBouncer vs read replicas?", "Which queries are write-heavy?"],
+      "codeExample": "docker-compose.prod.yml — one postgres service, no replica"
+    },
+    {
+      "id": "arch-03",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "Single points of failure in current production?",
+      "answer": "One Hetzner VM, one Postgres instance, one GHCR pull path, symmetric JWT signing key in identity (no JWKS rotation yet), no Redis — tenant config read from DB per request in many handlers.",
+      "followUps": [],
+      "codeExample": ""
+    },
+    {
+      "id": "db-01",
+      "category": "database",
+      "difficulty": "senior",
+      "question": "How is multi-tenant isolation enforced in the monolith?",
+      "answer": "No EF global query filter (removed intentionally). TenantMiddleware sets TenantContext from JWT tenant_id, API key, or X-Tenant-Id; handlers must call .ForTenant(tenantProvider) on IQueryable<TenantOwnedEntity>. Guid.Empty skips filter for admin/seeding only.",
+      "followUps": ["What happens if a developer forgets ForTenant?", "How is this tested?"],
+      "codeExample": "QueryExtensions.ForTenant + TenantMiddleware"
+    },
+    {
+      "id": "db-02",
+      "category": "database",
+      "difficulty": "mid",
+      "question": "How does the compliance engine split enforce tenancy?",
+      "answer": "EF global filters on TenantOwnedEntity via TenantOwnedQueryFilterConfigurator + HttpTenantContext from JWT tenant_id claim — different from monolith explicit ForTenant pattern.",
+      "followUps": ["Why two approaches during migration?"],
+      "codeExample": "TenantIsolationTests in maemo-compliance-engine"
+    },
+    {
+      "id": "auth-01",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "How does authentication work end-to-end for a portal user?",
+      "answer": "Login hits /api/auth/* (monolith) or maemo-identity; BCrypt verifies password; JWT issued with issuer maemo-identity/maemo-compliance, 8h expiry, claims tenant_id, role, plan, setup_complete. Portal auth.interceptor attaches Bearer; engine validates same symmetric key or Authority URL; TenantMiddleware reads tenant_id.",
+      "followUps": ["Azure AD path?", "Token invalidation on password change?"],
+      "codeExample": "JwtTokenService.CreateToken in maemo-identity"
+    },
+    {
+      "id": "auth-02",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "What is SmartJwt in the monolith?",
+      "answer": "Policy scheme that forwards Bearer tokens to LocalJwt if issuer matches local symmetric issuer, else AzureAd JWT validation — allows one host to serve MSAL enterprise users and email/password tenants without duplicate routes.",
+      "followUps": [],
+      "codeExample": "MaemoCompliance.Api Program.cs authentication setup"
+    },
+    {
+      "id": "sec-01",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "OWASP: how are API keys stored?",
+      "answer": "Engine/monolith API keys stored as plaintext maemo_* tokens in DB for exact lookup — acceptable for integration keys with rotation via admin UI but a senior interviewer will ask about hashing; document trade-off: fast lookup vs breach impact.",
+      "followUps": ["How would you hash API keys?"],
+      "codeExample": ""
+    },
+    {
+      "id": "sec-02",
+      "category": "security",
+      "difficulty": "mid",
+      "question": "What must never be exposed on public nginx?",
+      "answer": "maemo-identity /internal/* routes (X-Service-Key), admin surfaces without IP allowlist, Postgres ports, GHCR credentials.",
+      "followUps": [],
+      "codeExample": ""
+    },
+    {
+      "id": "be-01",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "Where does document approval business logic live?",
+      "answer": "ApproveDocumentCommandHandler — validates DocumentWorkflowStateMachine transition, updates approver metadata, supersedes previous version to Obsolete, SaveChanges, dual audit logs (technical AuditLogEntry + BusinessAuditLog for compliance trail).",
+      "followUps": ["Edge case: approve without previous version?"],
+      "codeExample": "ApproveDocumentCommandHandler.cs lines 33-116"
+    },
+    {
+      "id": "be-02",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What background jobs run in production workers?",
+      "answer": "ComplianceJobsWorker (5 min): review reminders, overdue NCRs, high residual risks, critical NCRs, retention upcoming/expired. DocumentDestructionWorker (24h), RecordsRetentionWorker (24h), HeartbeatWorker (1 min) with WorkerJobLog persistence.",
+      "followUps": ["Idempotency on restart?"],
+      "codeExample": "ComplianceJobsWorker.ExecuteAsync"
+    },
+    {
+      "id": "fe-01",
+      "category": "frontend",
+      "difficulty": "senior",
+      "question": "How does the portal attach auth to API calls?",
+      "answer": "auth.interceptor prefers local JWT from AuthService; else MSAL silent token for Azure scope; always sends X-Tenant-Id when tenant context exists — dual IdP without duplicating route trees.",
+      "followUps": ["401 handling?"],
+      "codeExample": "maemo-portal auth.interceptor.ts"
+    },
+    {
+      "id": "devops-01",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "Trace deploy from git push to live.",
+      "answer": "Push main → GitHub Actions unit+integration (Testcontainers) → docker build-push to ghcr.io/codist-pty-ltd/* → SSH appleboy → git pull in /opt/<service>/app → docker compose pull/up → curl health on loopback port → nginx already points at 127.0.0.1:PORT.",
+      "followUps": ["Rollback strategy?"],
+      "codeExample": ".github/workflows/ci.yml deploy job"
+    },
+    {
+      "id": "trade-01",
+      "category": "trade-offs",
+      "difficulty": "staff",
+      "question": "Most dangerous architectural decision?",
+      "answer": "Running split engine + monolith API both on 8090 against shared Postgres without hard nginx cutover discipline — risk of double-writes or schema drift. Second: symmetric JWT without JWKS/blacklist — compromised token valid until 8h expiry.",
+      "followUps": [],
+      "codeExample": ""
+    },
+    {
+      "id": "trade-02",
+      "category": "trade-offs",
+      "difficulty": "senior",
+      "question": "Intentional technical debt?",
+      "answer": "Duplicate portal/engine/admin projects inside monolith repo while split repos mature; plaintext API keys; JWKS stub empty; maemo-public contact endpoint mismatch with identity /request-access; admin production env placeholders.",
+      "followUps": ["Payback timeline?"],
+      "codeExample": ""
+    },
+    {
+      "id": "beh-01",
+      "category": "behavioural",
+      "difficulty": "senior",
+      "question": "Describe a production-adjacent CI/deploy failure you fixed.",
+      "answer": "Situation: deploy job failed with empty SSH host. Task: restore Hetzner deploy. Action: traced GitHub Environment secrets overriding repo secrets; fixed appleboy input version; aligned compose service names Host=postgres; added GHCR path docker/Dockerfile.api. Result: green deploy + health curl on 8090.",
+      "followUps": [],
+      "codeExample": "git 594e80c, 5692ac8"
+    },
+    {"id":"arch-04","category":"architecture","difficulty":"mid","question":"Bounded contexts?","answer":"Identity: users, tenants, invites, access requests, JWT. Compliance engine: documents, NCRs, risks, audits, webhooks, API keys. Workers: scheduled compliance sweeps. Portal/public/admin: presentation only.","followUps":[],"codeExample":""},
+    {"id":"arch-05","category":"architecture","difficulty":"junior","question":"What is maemo-public vs maemo-portal?","answer":"maemo-public is Next.js 14 static marketing (port 3010). maemo-portal is Angular 19 tenant app (3020) calling identity + engine APIs.","followUps":[],"codeExample":""},
+    {"id":"db-03","category":"database","difficulty":"mid","question":"Migration strategy?","answer":"EF Core migrations in infrastructure project; monolith auto-migrates in Development; production deploy relies on migrated schema before API up; engine has Compliance__AutoMigrate flag in example env.","followUps":["Bad migration recovery?"],"codeExample":""},
+    {"id":"db-04","category":"database","difficulty":"senior","question":"Backup strategy today?","answer":"Postgres volume on Hetzner docker volume maemo_compliance_postgres_data — no documented off-site backup in repo; senior answer: assume RPO/RTO risk until pg_dump/WAL archiving defined.","followUps":[],"codeExample":""},
+    {"id":"auth-03","category":"security","difficulty":"mid","question":"Engine API key format?","answer":"mce_<publicGuid>_<secret> on X-Api-Key for /engine/v1 routes with per-IP rate limit ~240/min.","followUps":[],"codeExample":"maemo-compliance-engine Program.cs"},
+    {"id":"auth-04","category":"security","difficulty":"senior","question":"Internal service auth between services?","answer":"maemo-identity /internal/* requires X-Service-Key; must not be on public nginx. Engine admin uses X-Admin-Key.","followUps":[],"codeExample":""},
+    {"id":"sec-03","category":"security","difficulty":"mid","question":"Password storage?","answer":"BCrypt via BCrypt.Net-Next in monolith AuthEndpoints and maemo-identity — work factor per project config, not plaintext.","followUps":[],"codeExample":""},
+    {"id":"sec-04","category":"security","difficulty":"senior","question":"GovOnPrem mode security extras?","answer":"AesEncryptionService for secrets, SecurityHeadersMiddleware, HSTS, restricted health detail exposure, local file storage forced.","followUps":[],"codeExample":""},
+    {"id":"be-03","category":"backend","difficulty":"mid","question":"CQRS entry point?","answer":"MediatR IRequest handlers in Application layer; API minimal endpoints send commands/queries; ValidationBehavior pipeline for FluentValidation.","followUps":[],"codeExample":""},
+    {"id":"be-04","category":"backend","difficulty":"senior","question":"NCR to audit finding link?","answer":"Ncrs can reference LinkedAuditFindingId; tests cover AuditFindingToNcrLink in engine unit suite.","followUps":[],"codeExample":""},
+    {"id":"be-05","category":"backend","difficulty":"mid","question":"Webhook delivery?","answer":"WebhookSubscription per tenant with HMAC secret; IWebhookDispatcher outbound; WebhookDeliveryLog for observability.","followUps":[],"codeExample":""},
+    {"id":"fe-02","category":"frontend","difficulty":"mid","question":"Angular version in monolith vs portal?","answer":"Monolith frontend ~20.2; split maemo-portal Angular 19 + PrimeNG 19 — migration in progress.","followUps":[],"codeExample":""},
+    {"id":"fe-03","category":"frontend","difficulty":"senior","question":"Module gating?","answer":"tenantModuleGuard checks modules from tenant/JWT before routes like documents, NCR, audits — feature flags embedded in tenant record not LaunchDarkly.","followUps":[],"codeExample":""},
+    {"id":"fe-04","category":"frontend","difficulty":"mid","question":"Admin console separation?","answer":"monolith frontend/projects/admin-console on port 4300 CORS; split maemo-admin is standalone Angular on 3030 with X-Admin-Key in localStorage.","followUps":[],"codeExample":""},
+    {"id":"devops-02","category":"devops","difficulty":"senior","question":"Zero downtime deploy?","answer":"docker compose up -d replaces containers; brief connection drop on single VM; no blue/green — honest answer for Hetzner single node.","followUps":[],"codeExample":""},
+    {"id":"devops-03","category":"devops","difficulty":"mid","question":"Identity deploy bootstrap?","answer":"First deploy can write .env from MAEMO_IDENTITY_POSTGRES_PASSWORD and MAEMO_IDENTITY_JWT_SIGNING_KEY via ssh-action envs if missing on server.","followUps":[],"codeExample":""},
+    {"id":"devops-04","category":"devops","difficulty":"junior","question":"Where do images live?","answer":"ghcr.io/codist-pty-ltd/<repo>:latest built on main push.","followUps":[],"codeExample":""},
+    {"id":"test-01","category":"backend","difficulty":"senior","question":"Integration test DB strategy?","answer":"Testcontainers.PostgreSql 3.10 with WebApplicationFactory; Ryuk disabled on CI; unit tests use EF InMemory.","followUps":[],"codeExample":"MaemoComplianceApiFixture"},
+    {"id":"test-02","category":"backend","difficulty":"mid","question":"Hardest thing to test?","answer":"Multi-tenant file storage + SharePoint integration — integration tests use local/fake storage; Graph paths need contract tests or sandbox.","followUps":[],"codeExample":""},
+    {"id":"test-03","category":"backend","difficulty":"senior","question":"2-day test priority?","answer":"Tenant isolation integration tests for every new engine endpoint; auth cutover contract test identity JWT accepted by engine; deploy smoke @smoke Playwright.","followUps":[],"codeExample":""},
+    {"id":"trade-03","category":"trade-offs","difficulty":"senior","question":".NET 8 vs Node for APIs?","answer":".NET chosen for EF typed compliance domain, long-running workers in same language, enterprise JWT/Entra libraries — Node only for marketing SPA.","followUps":[],"codeExample":""},
+    {"id":"trade-04","category":"trade-offs","difficulty":"senior","question":"PostgreSQL vs Mongo?","answer":"Relational integrity across tenants/documents/NCR/audit graphs; ACID for approval workflows; POPIA audit trail — document DB would weaken join queries for dashboard.","followUps":[],"codeExample":""},
+    {"id":"trade-05","category":"trade-offs","difficulty":"mid","question":"What would you remove?","answer":"Duplicate portal/engine/admin hosts inside monolith once split verified; empty JWKS stub until real keys; legacy ci-maemo.yml if unused.","followUps":[],"codeExample":""},
+    {"id":"trade-06","category":"trade-offs","difficulty":"senior","question":"Proud of what?","answer":"Explicit tenant query discipline documented + tested; document workflow state machine with supersede chain; strangler multi-repo CI without stopping production.","followUps":[],"codeExample":""},
+    {"id":"scale-01","category":"architecture","difficulty":"staff","question":"100x load break?","answer":"Postgres writes, disk I/O on /app/files, Resend API, single VM network bandwidth — would need sharded tenants or read replicas before adding API pods.","followUps":[],"codeExample":""},
+    {"id":"int-01","category":"backend","difficulty":"mid","question":"Resend integration failure?","answer":"LoggingEmailSender fallback when no API key — emails logged not sent; production must monitor log volume for silent mail failure.","followUps":[],"codeExample":""},
+    {"id":"int-02","category":"backend","difficulty":"senior","question":"PayFast billing?","answer":"PayFastBillingProvider with webhook signature verification — billing tied to tenant usage; stub paths may exist for dev.","followUps":[],"codeExample":""},
+    {"id":"popia-01","category":"backend","difficulty":"senior","question":"POPIA support?","answer":"Document PII fields, popiatrail endpoints, retention workers, destruction grace period — SA regulatory constraint driving schema.","followUps":[],"codeExample":""},
+    {"id":"fe-05","category":"frontend","difficulty":"junior","question":"MSAL used for what?","answer":"Optional Azure AD login for enterprises; local JWT for email/password tenants — dual path in one SPA.","followUps":[],"codeExample":""},
+    {"id":"be-06","category":"backend","difficulty":"senior","question":"Consultant multi-tenant model?","answer":"ConsultantTenantLinks + consultant-scoped audit templates; engine enforces client tenant scope for consultant role.","followUps":[],"codeExample":""},
+    {"id":"devops-05","category":"devops","difficulty":"senior","question":"Workers CI why double checkout?","answer":"MaemoWorkers.csproj references engine Domain project; Docker context needs maemo-compliance-engine/ directory — cannot build workers repo alone without it.","followUps":[],"codeExample":""},
+    {"id":"arch-06","category":"architecture","difficulty":"senior","question":"nginx role?","answer":"SSL termination and reverse proxy to 127.0.0.1 loopback ports per service — containers not exposed publicly.","followUps":[],"codeExample":""},
+    {"id":"auth-05","category":"security","difficulty":"mid","question":"Public signup abuse?","answer":"MemoryPublicSignupRateLimiter on access request and signup endpoints — per-process only.","followUps":[],"codeExample":""},
+    {"id":"be-07","category":"backend","difficulty":"mid","question":"Health checks?","answer":"/health/live anonymous; /health/ready includes DB; GovOnPrem middleware restricts detailed health exposure.","followUps":[],"codeExample":""},
+    {"id":"fe-06","category":"frontend","difficulty":"senior","question":"setup_complete gate?","answer":"JWT claim setup_complete + companySetupGuard routes users through wizard before module routes — reduces incomplete tenant config support burden.","followUps":[],"codeExample":""}
+  ],
+  "systemDesignTopics": [
+    {
+      "topic": "Multi-tenancy",
+      "currentImplementation": "Tenant_id claim + middleware + explicit ForTenant (monolith) or EF filters (engine); file storage paths include tenant id in GovOnPrem local disk mode.",
+      "seniorInsight": "Global filters hide foot-guns but obscure admin queries; explicit filters fail open if forgotten — engine chose filters, monolith chose explicit after removing global filter.",
+      "interviewQuestion": "How would you prove tenant A cannot read tenant B's NCR in an integration test?"
+    },
+    {
+      "topic": "Auth split (identity service)",
+      "currentImplementation": "maemo-identity owns users/tenants/JWT; engine validates bearer; internal HTTP with X-Service-Key for staleness checks.",
+      "seniorInsight": "Cutover requires matching issuer/audience/signing key across all consumers before nginx switches — not just deploying identity.",
+      "interviewQuestion": "How do you rotate JWT signing keys with zero downtime?"
+    },
+    {
+      "topic": "Observability",
+      "currentImplementation": "Serilog, ApiCallLog, ErrorLog, WorkerJobLog, BusinessAuditLog; health /health/live and /health/ready with DB check.",
+      "seniorInsight": "No distributed tracing across identity→engine→workers; correlating a failed email to an NCR requires manual log join on timestamps.",
+      "interviewQuestion": "What three metrics would you alert on day one?"
+    },
+    {
+      "topic": "Caching",
+      "currentImplementation": "No Redis; optional in-memory public signup rate limiter.",
+      "seniorInsight": "Tenant modules/plan from JWT claims reduce DB hits on read paths; settings changes need token refresh or short TTL cache with invalidation on tenant update webhook.",
+      "interviewQuestion": "What would you cache first and what TTL?"
+    },
+    {
+      "topic": "Background processing",
+      "currentImplementation": "In-process BackgroundService workers; split maemo-workers uses same DB tables.",
+      "seniorInsight": "No outbox — restart mid-job can duplicate emails or miss a sweep; idempotency keys on WorkerJobLog rows partially mitigate observability not correctness.",
+      "interviewQuestion": "How would you add an outbox without a message broker?"
+    },
+    {
+      "topic": "File storage",
+      "currentImplementation": "SharePoint/Graph for SaaS; local disk with AES tenant secrets for GovOnPrem; SHA256 FileHash on documents.",
+      "seniorInsight": "Compliance evidence chain depends on hash + immutability — destruction worker has 30-day grace before physical delete.",
+      "interviewQuestion": "How do you handle large file uploads at scale?"
+    },
+    {
+      "topic": "POPIA / retention",
+      "currentImplementation": "Document retention fields, RecordsRetentionWorker, POPIA trail endpoints, destruction workflow.",
+      "seniorInsight": "Legal retention is schedule-driven batch jobs not real-time — clock skew and timezone (South Africa) matter for overdue NCR worker.",
+      "interviewQuestion": "How would you audit every personal data access?"
+    },
+    {
+      "topic": "CI/CD multi-repo",
+      "currentImplementation": "Seven repos, GHCR codist-pty-ltd, SSH deploy per /opt path; workers CI double-checkout engine.",
+      "seniorInsight": "Version skew: portal can ship daily while engine needs migration lockstep — contract tests between repos missing today.",
+      "interviewQuestion": "How do you prevent deploying engine before migration runs?"
+    },
+    {
+      "topic": "Rate limiting",
+      "currentImplementation": "MemoryPublicSignupRateLimiter on public signup; engine /engine rate limit ~240/min per IP.",
+      "seniorInsight": "In-memory limiters don't work multi-instance — acceptable on single Hetzner VM, breaks on horizontal scale.",
+      "interviewQuestion": "Design distributed rate limiting for signup abuse."
+    },
+    {
+      "topic": "Real-time notifications",
+      "currentImplementation": "Email via Resend queue table + EmailQueueWorker; no WebSockets.",
+      "seniorInsight": "Adding SignalR would stay on portal BFF or engine hub with tenant group keyed by tenant_id — auth must revalidate group membership on connect.",
+      "interviewQuestion": "Sketch notification architecture without polling."
+    }
+  ],
+  "behaviouralAnchors": [
+    {
+      "question": "Difficult technical decision with incomplete information",
+      "situation": "Maemo needed production deploy while GitHub Environment secrets and compose service naming were undocumented.",
+      "task": "Get CI green and first Hetzner deploy without staging parity.",
+      "action": "Read failing workflow logs; removed invalid ssh-action inputs; documented compose Host=postgres vs container_name; aligned GHCR docker paths; added deploy preflight for empty secrets.",
+      "result": "Automated deploy to /opt/maemo-compliance with health check gate; documented in MAEMO_DEPLOYMENT_GUIDE.",
+      "seniorSignal": "Fixed platform contract (secrets precedence) not just symptoms; left runbook for next engineer."
+    },
+    {
+      "question": "Production issue / deploy failure",
+      "situation": "Azure AD placeholder Authority/Audience in production config.",
+      "task": "Restore login for enterprise tenants.",
+      "action": "Commit 24072ae replaced placeholders with real Entra tenant and client IDs; verified JWT validation path in SmartJwt.",
+      "result": "MSAL login succeeded; dual auth path preserved for local JWT users.",
+      "seniorSignal": "Understood auth scheme routing, not only frontend MSAL config."
+    },
+    {
+      "question": "Balance quality vs speed — repo split",
+      "situation": "Monolith carried duplicate portal/engine/admin hosts plus seven new repos.",
+      "task": "Enable independent CI without big-bang cutover.",
+      "action": "Shipped GHCR workflows and loopback compose per repo; kept monolith live; external Docker network for engine/workers to share Postgres temporarily.",
+      "result": "All Codist-Pty-Ltd repos on main with Actions; nginx cutover remains deliberate per host.",
+      "seniorSignal": "Strangler fig pattern — parallel deployables, single production traffic path until verified."
+    },
+    {
+      "question": "Complex feature end-to-end",
+      "situation": "Local email/password auth + tenant setup wizard added alongside Azure AD.",
+      "task": "Single portal UX with onboarding gates.",
+      "action": "BCrypt users, JWT claims setup_complete, guards (companySetupGuard, userOnboardingGuard), MediatR onboarding handlers, FluentValidation.",
+      "result": "Signup → verify → wizard → module-gated app shell without forking Angular apps.",
+      "seniorSignal": "Cross-cutting auth, domain state, and routing — not just API endpoints."
+    },
+    {
+      "question": "Performance improvement",
+      "situation": "Integration tests slow/flaky with Ryuk on GitHub runners.",
+      "task": "Stabilize CI without dropping Postgres fidelity.",
+      "action": "TESTCONTAINERS_RYUK_DISABLED=true in workflow; shared build before test; separate unit (in-memory) vs integration (container).",
+      "result": "Predictable integration suite for identity and compliance engine on every PR.",
+      "seniorSignal": "Chose test fidelity appropriate to layer — not all tests need Testcontainers."
+    },
+    {
+      "question": "Code review approach",
+      "situation": "Multi-tenant handlers across dozens of MediatR files.",
+      "task": "Prevent cross-tenant data leaks in reviews.",
+      "action": "Push back on any Documents/Ncrs query without .ForTenant or tenant_id in SQL; require integration test for new tenant-owned endpoints.",
+      "result": "TenantIsolationTests pattern in engine; monolith QueryExtensions documented in DbContext comments.",
+      "seniorSignal": "Reviews focus on data-plane invariants, not style."
+    },
+    {
+      "question": "Disagreement on approach",
+      "situation": "Global EF tenant filter vs explicit ForTenant.",
+      "task": "Pick isolation strategy for monolith.",
+      "action": "Removed global filter (documented in DbContext) after admin/seeding needed Guid.Empty bypass; standardized explicit extension method.",
+      "result": "Clearer intent in code review at cost of developer discipline.",
+      "seniorSignal": "Owned trade-off: fail-open on omission vs fail-closed magic filter."
+    }
+  ],
+  "dangerZones": [
+    {
+      "area": "Tenant isolation",
+      "risk": "Missing .ForTenant on new query leaks cross-tenant data.",
+      "whatJuniorSays": "We use PostgreSQL and JWT.",
+      "whatSeniorSays": "Every IQueryable on TenantOwnedEntity must pass ForTenant or an integration test proving tenant B cannot see tenant A's row by primary key."
+    },
+    {
+      "area": "JWT / identity cutover",
+      "risk": "Issuer or signing key mismatch bricks all portal API calls silently as 401.",
+      "whatJuniorSays": "Identity service handles auth.",
+      "whatSeniorSays": "Cutover checklist: issuer, audience, signing key bytes, clock skew, claim names tenant_id vs TenantId, and nginx routing to 8100 before disabling monolith auth routes."
+    },
+    {
+      "area": "Deploy / secrets",
+      "risk": "Blank GitHub Environment secret overrides repo secret → empty SSH host.",
+      "whatJuniorSays": "CI is broken.",
+      "whatSeniorSays": "Environment secrets take precedence; preflight step fails fast with message to remove blank env secrets or set real values — commit 5692ac8 class of bug."
+    },
+    {
+      "area": "Background workers",
+      "risk": "Restart mid-job without idempotency duplicates emails or retention actions.",
+      "whatJuniorSays": "Workers run every 5 minutes.",
+      "whatSeniorSays": "ComplianceJobsWorker scopes per iteration but does not use outbox/idempotency keys — production scale needs dedupe on business key or lease row."
+    },
+    {
+      "area": "Split architecture status",
+      "risk": "Claiming microservices are done while monolith still serves 8090/3020.",
+      "whatJuniorSays": "We have seven repos.",
+      "whatSeniorSays": "Production traffic is still maemo-compliance monolith; split repos are deployable strangler components — interview answer must state cutover state honestly."
+    }
+  ]
+}

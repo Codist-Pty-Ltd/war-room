@@ -47,9 +47,61 @@ export const SKILL_LESSONS: SkillLesson[] = [
       b: "Dictionary + foreach + ReadLines — best to explain aloud.",
     },
     keepLearning: [
+      "Waymark postal code challenges (Console Lab → Waymark) — semicolon CSV",
       "Postcode prefix challenge (Investec #1) — both approaches",
       "csv-sales-by-region, bank-running-balance, csv-date-filter",
-      "Practice: wrong column index once on purpose, then fix — builds memory",
+      "Practice: wrong delimiter once on purpose (; vs ,) — builds memory",
+    ],
+  },
+  {
+    id: "waymark-csv",
+    title: "Waymark SA Postal CSV (semicolon)",
+    intro:
+      "Waymark .NET interview uses postal_codes_eng_lat_lon.csv — 59 rows, 21 semicolon-separated columns, one corrupted row. Core task: count per place_code.",
+    visualStudioSetup: VISUAL_STUDIO_SETUP,
+    mustMemorise: [
+      "Delimiter is semicolon: line.Split(';') — NOT comma",
+      "place_code = index 3, eng = 5, box_code = 17, lat = 18, lon = 19",
+      "Skip header row when cols[0] == \"id\"",
+      "cols.Length >= 20 before reading lon index 19",
+      "Empty place_code + row 100055 = data quality drill",
+      "Output core format: KZN263, 7 sorted by code ascending",
+    ],
+    steps: [
+      {
+        step: 1,
+        title: "Copy CSV",
+        body: "waymark_dotnet_challenge/postal_codes_eng_lat_lon.csv → project folder or output dir.",
+      },
+      {
+        step: 2,
+        title: "Split on ;",
+        body: "var cols = line.Split(';'); guard cols.Length >= 20.",
+      },
+      {
+        step: 3,
+        title: "Parse fields",
+        body: "placeCode = cols[3].Trim(); TryParse cols[18]/[19] for coords.",
+      },
+      {
+        step: 4,
+        title: "Count",
+        body: "Dictionary<string,int> or GroupBy(place_code).Count().",
+      },
+      {
+        step: 5,
+        title: "Print",
+        body: "OrderBy(code asc) → Console.WriteLine($\"{code}, {count}\").",
+      },
+    ],
+    twoApproachesSummary: {
+      a: "LINQ GroupBy — ship core task in 30 min; narrate each stage.",
+      b: "Dictionary + ReadLines — tech lead choice: guards, skip metrics, easier to extend.",
+    },
+    keepLearning: [
+      "Console Lab → 12 Waymark challenges (core → data quality → bonus JSON)",
+      "waymark_dotnet_challenge/solutions/01-core-count-linq/GUIDE.md",
+      "Practice semicolon vs comma trap before every session",
     ],
   },
   {

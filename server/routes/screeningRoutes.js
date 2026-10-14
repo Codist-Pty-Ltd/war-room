@@ -5,11 +5,11 @@ const {
   list,
   getById,
 } = require("../controllers/screeningController");
-const generateLimiter = require("../middleware/generateLimiter");
+const { generationLimiter } = require("../middleware/rateLimiter");
 const requireApiKey = require("../middleware/requireApiKey");
 
 // POST /api/screening — generate (cache-first) or force new
-router.post("/screening", requireApiKey, generateLimiter, generate);
+router.post("/screening", requireApiKey, generationLimiter, generate);
 
 // GET /api/screenings — list all cached screening questions
 router.get("/screenings", list);

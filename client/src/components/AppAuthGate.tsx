@@ -9,6 +9,7 @@ import {
   AuthSurfaceContext,
   type AuthSurfaceValue,
 } from "../context/AuthSurfaceContext";
+import { rolesFromWarRoomRole, useAuthStore } from "../store/authStore";
 
 type GateState =
   | { phase: "loading" }
@@ -27,14 +28,21 @@ export default function AppAuthGate({ children }: { children: ReactNode }) {
     fetchAuthStatus()
       .then((s) => {
         if (!s.authRequired) {
+          useAuthStore.getState().clearAuth();
           setState({ phase: "ready", authRequired: false, role: null });
           return;
         }
         if (s.authenticated) {
           const role = s.role === "guest" ? "guest" : "super";
+          useAuthStore.getState().setAuth(
+            "cookie-session",
+            s.username ?? "user",
+            rolesFromWarRoomRole(role),
+          );
           setState({ phase: "ready", authRequired: true, role });
           return;
         }
+        useAuthStore.getState().clearAuth();
         setState({ phase: "login" });
       })
       .catch(() => {
@@ -51,6 +59,7 @@ export default function AppAuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
+      useAuthStore.getState().clearAuth();
       setState((prev) => {
         if (prev.phase === "ready" && prev.authRequired) {
           return { phase: "login" };
@@ -67,6 +76,7 @@ export default function AppAuthGate({ children }: { children: ReactNode }) {
     } catch {
       /* still clear local UI */
     }
+    useAuthStore.getState().clearAuth();
     setState((prev) =>
       prev.phase === "ready" && prev.authRequired ? { phase: "login" } : prev,
     );
@@ -156,6 +166,11 @@ export default function AppAuthGate({ children }: { children: ReactNode }) {
             setBusy(true);
             try {
               const { role } = await loginWarRoom(username, password);
+              useAuthStore.getState().setAuth(
+                "cookie-session",
+                username,
+                rolesFromWarRoomRole(role),
+              );
               setState({ phase: "ready", authRequired: true, role });
             } catch (err) {
               setLoginError(err instanceof Error ? err.message : "Sign-in failed");

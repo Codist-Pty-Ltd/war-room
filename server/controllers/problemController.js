@@ -1,7 +1,13 @@
 const Problem = require("../models/Problem");
+const { getAnthropicModel } = require("../config/anthropic");
 const { getPlatformGuideEntry } = require("../constants/platformGuides");
 const { getCategoryGuideAddition } = require("../constants/categoryGuides");
 const { parseClaudeJson } = require("../utils/parseClaudeJson");
+const { getCachedProblem, cacheProblem } = require("../services/problemCache");
+
+function buildProblemCacheKey(platform, language, category, difficulty) {
+  return `${platform}:${language}:${category}:${difficulty}`.toLowerCase();
+}
 
 const JSON_SCHEMA_BLOCK = `You MUST respond with ONLY a valid JSON object — no markdown, no backticks, no text outside JSON.
 
@@ -93,6 +99,7 @@ async function generate(req, res, next) {
     }
 
     // Cache-first: check if we already have a problem for this combo
+    const cacheKey = buildProblemCacheKey(platform, language, category, difficulty);
     if (!forceNew) {
       const cached = Problem.findCached(
         platform,
@@ -109,6 +116,12 @@ async function generate(req, res, next) {
           cached: true,
           id: cached.id,
         });
+      }
+
+      const redisCached = await getCachedProblem(cacheKey);
+      if (redisCached) {
+        console.log(`Redis cache HIT: ${cacheKey}`);
+        return res.json({ problem: redisCached, cached: true, id: null });
       }
     }
 
@@ -134,7 +147,7 @@ async function generate(req, res, next) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: getAnthropicModel(),
         max_tokens: 4000,
         system: buildSystemPrompt(guide),
         messages: [
@@ -178,6 +191,7 @@ async function generate(req, res, next) {
       problem,
       problem.title,
     );
+    await cacheProblem(cacheKey, problem);
     console.log(`Saved problem #${id}: "${problem.title}"`);
 
     res.json({ problem, cached: false, id });

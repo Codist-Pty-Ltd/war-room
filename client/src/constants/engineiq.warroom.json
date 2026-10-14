@@ -1,0 +1,622 @@
+{
+  "product": {
+    "name": "EngineIQ",
+    "slug": "engineiq",
+    "status": "live",
+    "oneLiner": "B2B SaaS AI pull-request review for South African software teams on GitHub, with PostgreSQL tenant isolation and no customer source persistence.",
+    "stack": [
+      ".NET 8",
+      "PostgreSQL 16",
+      "RabbitMQ 3",
+      "Redis 7 (provisioned, not used in app code yet)",
+      "Next.js 14 static export",
+      "React + Vite admin SPA",
+      "Python 3.12 reporting",
+      "Caddy 2",
+      "Anthropic Claude claude-sonnet-4-6",
+      "Docker Compose",
+      "Hetzner"
+    ],
+    "servers": [
+      "https://api.engineiq.co.za",
+      "https://app.engineiq.co.za",
+      "https://engineiq.co.za",
+      "engineiq-admin http://127.0.0.1:8081 (host bind in production compose)"
+    ]
+  },
+  "flashcards": [
+    {
+      "id": "eiq-01",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "What architectural pattern is EngineIQ and why are API and Worker separate processes?",
+      "answer": "Modular monolith with event-driven async processing. GitHub webhooks must respond in under ~500ms (claim + RabbitMQ publish only). PR review calls GitHub and Anthropic for up to 90 seconds with retries. Splitting EngineIQ.API and EngineIQ.Worker avoids blocking Kestrel threads and maps cleanly to queue retry and DLQ semantics without operating many microservices.",
+      "followUps": [
+        "What breaks first at 10x load?",
+        "Would you merge them back?"
+      ],
+      "codeExample": "src/EngineIQ.API/Controllers/WebhookController.cs"
+    },
+    {
+      "id": "eiq-02",
+      "category": "architecture",
+      "difficulty": "staff",
+      "question": "What is the most dangerous architectural gap a staff engineer would flag on day one?",
+      "answer": "Job row is inserted in PostgreSQL before RabbitMQ publish; on publish failure the queued row is deleted and the handler returns 503. Correctness depends on GitHub redelivering the same X-GitHub-Delivery. There is no transactional outbox — a staff fix is outbox or publish-then-mark with reconciliation.",
+      "followUps": [
+        "How does idempotency interact with this?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Persistence/JobRepository.cs"
+    },
+    {
+      "id": "eiq-03",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "How is GitHub webhook idempotency implemented?",
+      "answer": "Unique index on (tenant_id, github_delivery_id) in pr_review_jobs. TryCreateQueuedJobAsync catches unique violation and returns Created=false; WebhookController logs duplicate delivery and returns 200 OK without publishing another queue message.",
+      "followUps": [
+        "What if two different events shared a delivery id?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Persistence/EngineIQDbContext.cs — HasIndex TenantId + GithubDeliveryId"
+    },
+    {
+      "id": "eiq-04",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What authenticates POST /webhooks/github?",
+      "answer": "HMAC SHA-256 via X-Hub-Signature-256 using the single GitHub App secret GitHub:WebhookSecret. Per-tenant whsec_* generated at registration is SHA256-stored and emailed for customer records but is NOT used for GitHub HMAC (GitHub Apps do not support per-installation webhook secrets).",
+      "followUps": [
+        "Why email whsec to customers?"
+      ],
+      "codeExample": "src/EngineIQ.API/Controllers/WebhookController.cs — WebhookValidator"
+    },
+    {
+      "id": "eiq-05",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "Is customer source code or full diffs persisted?",
+      "answer": "No. ReviewOrchestrator fetches diff via IGitHubClient, passes string to IAIEngine in memory, posts comment via GitHub API. DB stores finding metadata (paths, severity, messages), job state, metrics — never diff blobs. PR comments and GET /security disclose ephemeral processing.",
+      "followUps": [
+        "What would an attacker get from DB read access?"
+      ],
+      "codeExample": "src/EngineIQ.ReviewEngine/Orchestration/ReviewOrchestrator.cs"
+    },
+    {
+      "id": "eiq-06",
+      "category": "database",
+      "difficulty": "senior",
+      "question": "How is multi-tenancy enforced in PostgreSQL?",
+      "answer": "RLS policies on child tables compare tenant_id to NULLIF(trim(current_setting('app.current_tenant_id', true)), '')::uuid. FORCE ROW LEVEL SECURITY on repositories, pr_review_jobs, findings, tenant_metrics. EngineIQDbContext.SetCurrentTenantAsync runs SELECT set_config('app.current_tenant_id', text, true) — true scopes to current transaction.",
+      "followUps": [
+        "Why is tenants table not FORCE?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Persistence/EngineIQDbContext.cs"
+    },
+    {
+      "id": "eiq-07",
+      "category": "database",
+      "difficulty": "staff",
+      "question": "How does the webhook resolve tenant_id before set_config?",
+      "answer": "SQL function fn_resolve_tenant_by_installation(bigint) maps GitHub App installation_id to tenant. Comment in migration: invoker bypasses RLS on tenants while FORCE is not used on tenants table, so lookup works before app.current_tenant_id is set.",
+      "followUps": [
+        "What about suspended tenants?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Migrations/20260504202519_Session3InitialSchema.cs"
+    },
+    {
+      "id": "eiq-08",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "How does tenant API authentication work?",
+      "answer": "X-Api-Key header on /api/v1/* except public onboarding paths. ApiKeyTenantMiddleware hashes key, resolves tenant_id, and for /api/v1/tenant/{id}/* returns 403 if route id != key tenant. No JWT. Keys stored as api_key_hash only after registration.",
+      "followUps": [
+        "How is key generated?"
+      ],
+      "codeExample": "src/EngineIQ.API/Middleware/ApiKeyTenantMiddleware.cs"
+    },
+    {
+      "id": "eiq-09",
+      "category": "backend",
+      "difficulty": "junior",
+      "question": "Which onboarding API routes are public (no API key)?",
+      "answer": "POST /api/v1/onboarding/register (rate limited by IP) and GET/POST /api/v1/onboarding/github-callback (GitHub redirect after App install). Register requires dpa_accepted: true.",
+      "followUps": [
+        "What does register return?"
+      ],
+      "codeExample": "src/EngineIQ.API/Controllers/OnboardingController.cs"
+    },
+    {
+      "id": "eiq-10",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "What is the rate limiting strategy?",
+      "answer": "ASP.NET Core fixed window: 100 requests per minute. Onboarding policy partitions by client IP. tenantApi policy partitions by TenantId from HttpContext.Items after API key validation. Rejection returns 429.",
+      "followUps": [
+        "Why per-tenant not per-key rotation?"
+      ],
+      "codeExample": "src/EngineIQ.API/Program.cs — AddRateLimiter"
+    },
+    {
+      "id": "eiq-11",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "What happens when a PR review job fails in the worker?",
+      "answer": "PullReviewJobConsumer: if job.Attempt < 3, republish message with Attempt+1 to main queue and ack original. Else MarkJobFailedAsync, publish raw body to DeadLetterQueueName, ack. Review has 90s CancellationToken. Shutdown mid-flight nacks with requeue.",
+      "followUps": [
+        "Is review idempotent on GitHub?"
+      ],
+      "codeExample": "src/EngineIQ.Worker/PullReviewJobConsumer.cs"
+    },
+    {
+      "id": "eiq-12",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What is the maximum time allowed for a single review execution?",
+      "answer": "90 seconds via CancellationTokenSource.CancelAfter in the worker consumer, linked to host shutdown token.",
+      "followUps": [
+        "Webhook time budget?"
+      ],
+      "codeExample": "src/EngineIQ.Worker/PullReviewJobConsumer.cs"
+    },
+    {
+      "id": "eiq-13",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "When is a PR review not enqueued to RabbitMQ?",
+      "answer": "ReviewEnqueuePolicy.ShouldEnqueue: false if review_all_pull_requests is false (auto_review_disabled) or if skip_draft_pull_requests and PR is draft. Webhook deletes the queued job row and returns 200. Worker re-checks preferences in case they changed.",
+      "followUps": [
+        "Where are preferences stored?"
+      ],
+      "codeExample": "src/EngineIQ.Domain/Reviews/ReviewEnqueuePolicy.cs"
+    },
+    {
+      "id": "eiq-14",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "Which AI provider and model does EngineIQ use?",
+      "answer": "Anthropic Messages API only. Default model claude-sonnet-4-6 from Anthropic:Model env. Project rule forbids OpenAI/Azure for product review flows.",
+      "followUps": [
+        "How is cost tracked?"
+      ],
+      "codeExample": "src/EngineIQ.AIEngine/ReviewService.cs"
+    },
+    {
+      "id": "eiq-15",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "What are the production deploy steps?",
+      "answer": "deploy.sh: source .env; docker compose pull (or SKIP_PULL=1 build); docker compose --profile migration run --rm engineiq-migrator; docker compose --profile platform up -d; health curl API/marketing/portal; optional PUBLIC_API_HEALTH_URL and Slack notify.",
+      "followUps": [
+        "Rollback strategy?"
+      ],
+      "codeExample": "deploy.sh"
+    },
+    {
+      "id": "eiq-16",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "What does CI do on push to main?",
+      "answer": "publish-images.yml builds and pushes seven images to ghcr.io/codist-pty-ltd/engineiq/* tagged latest and git sha: api, worker, admin, migrator, marketing, portal, reporting. No test job in workflow today.",
+      "followUps": [
+        "How does server get images?"
+      ],
+      "codeExample": ".github/workflows/publish-images.yml"
+    },
+    {
+      "id": "eiq-17",
+      "category": "frontend",
+      "difficulty": "senior",
+      "question": "How does the customer portal store credentials?",
+      "answer": "localStorage keys engineiq_tenant_id and engineiq_api_key via saveSession/loadSession in auth.ts. Static Next export — no HttpOnly cookie, no server session. XSS on portal origin could exfiltrate keys.",
+      "followUps": [
+        "401 handling?"
+      ],
+      "codeExample": "web/portal/src/lib/auth.ts"
+    },
+    {
+      "id": "eiq-18",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "How does the portal call the API?",
+      "answer": "fetch to NEXT_PUBLIC_ENGINEIQ_API_URL (default localhost:5056) with X-Api-Key on /api/v1/tenant/{tenantId}{path}. CORS Portal policy allows https://app.engineiq.co.za. OPTIONS bypasses API key middleware.",
+      "followUps": [
+        "PATCH preferences shape?"
+      ],
+      "codeExample": "web/portal/src/lib/api.ts"
+    },
+    {
+      "id": "eiq-19",
+      "category": "architecture",
+      "difficulty": "mid",
+      "question": "How does Caddy route public hostnames?",
+      "answer": "engineiq.co.za → engineiq-marketing:80; app.engineiq.co.za → engineiq-portal:80; api.engineiq.co.za → engineiq-api:5000. TLS via Let's Encrypt. www redirects to apex.",
+      "followUps": [
+        "Where is admin exposed?"
+      ],
+      "codeExample": "deploy/Caddyfile"
+    },
+    {
+      "id": "eiq-20",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "How is internal admin authenticated?",
+      "answer": "HTTP Basic Auth Admin:Username and Admin:Password from env (ENGINEIQ_ADMIN_*). BasicAuthMiddleware protects /admin and /api/v1/admin. SPA sends Authorization header; middleware avoids WWW-Authenticate on /api paths to prevent browser credential dialog breaking fetch.",
+      "followUps": [
+        "Why bind 127.0.0.1:8081?"
+      ],
+      "codeExample": "src/EngineIQ.Admin/Middleware/BasicAuthMiddleware.cs"
+    },
+    {
+      "id": "eiq-21",
+      "category": "trade-offs",
+      "difficulty": "staff",
+      "question": "Redis is in docker-compose — how is it used?",
+      "answer": "Not referenced in C# source today. Container runs redis-server --appendonly yes for future cache (tenant preferences on every webhook), rate-limit partitions, or distributed locks. Honest technical debt.",
+      "followUps": [
+        "First Redis use case you'd implement?"
+      ],
+      "codeExample": "docker-compose.yml — redis service"
+    },
+    {
+      "id": "eiq-22",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "What happens when a suspended tenant receives a webhook?",
+      "answer": "TryCreateQueuedJobAsync checks tenant Status == Suspended and returns block reason suspended; WebhookController returns 403 tenant_suspended — fail closed, not silent drop.",
+      "followUps": [
+        "Who can suspend?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Persistence/JobRepository.cs"
+    },
+    {
+      "id": "eiq-23",
+      "category": "database",
+      "difficulty": "mid",
+      "question": "Name the core PostgreSQL tables and their role.",
+      "answer": "tenants (identity, keys, GitHub install, config/preferences JSONB, DPA); repositories (per-tenant full_name); pr_review_jobs (lifecycle + github_delivery_id); findings (violation metadata); tenant_metrics (daily aggregates, cost ZAR).",
+      "followUps": [
+        "Unique constraints that matter?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Migrations/20260504202519_Session3InitialSchema.cs"
+    },
+    {
+      "id": "eiq-24",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "Describe GitHub App install completion flow.",
+      "answer": "User opens install URL with state=GitHubInstallState. GitHub redirects to /api/v1/onboarding/github-callback?installation_id=&state=. CompleteGitHubInstallAsync binds installation to tenant, sends optional live email, redirects to ENGINEIQ_DASHBOARD_BASE_URL/?onboarding=complete&tenant_id=.",
+      "followUps": [
+        "AwaitingGitHubInstall status meaning?"
+      ],
+      "codeExample": "src/EngineIQ.API/Controllers/OnboardingController.cs — GitHubCallback"
+    },
+    {
+      "id": "eiq-25",
+      "category": "security",
+      "difficulty": "senior",
+      "question": "What does an attacker with read-only database access obtain?",
+      "answer": "Tenant names, emails, org logins, job metadata, finding paths/severities, hashed api_key and webhook_secret, metrics — not plaintext API keys, not whsec, not source code or diffs.",
+      "followUps": [
+        "Rotation story for API keys?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-26",
+      "category": "behavioural",
+      "difficulty": "senior",
+      "question": "Describe a real production bug you fixed in this codebase.",
+      "answer": "Portal analytics 500: EF Core mistranslated DateTimeOffset.UtcDateTime.Date in SQL. Fix commit 5f7ea22 — use CompletedAt.Value.Date and CreatedAt.Date in projections. Symptom: dashboard broken; cause ORM translation not business logic.",
+      "followUps": [
+        "How did you detect it?"
+      ],
+      "codeExample": "src/EngineIQ.Infrastructure/Persistence/TenantRepository.cs"
+    },
+    {
+      "id": "eiq-27",
+      "category": "devops",
+      "difficulty": "mid",
+      "question": "Is deploy zero-downtime?",
+      "answer": "No formal blue/green. docker compose up -d recreates containers; brief unavailability possible. Static marketing/portal served by nginx in container — usually fast. API/worker restart drops in-flight consumer until RabbitMQ redelivers.",
+      "followUps": [
+        "How to improve?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-28",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "What are the bounded contexts?",
+      "answer": "Tenant lifecycle (onboarding, install, API keys, DPA); review execution (webhook, queue, orchestrator, GitHub comment); findings and metrics (portal/admin analytics); trust and compliance (GET /security, audit metadata, PR footer); internal ops (admin suspend, DLQ, plans).",
+      "followUps": [
+        "Which context spans most projects?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-29",
+      "category": "backend",
+      "difficulty": "staff",
+      "question": "What must every GitHub PR review comment include?",
+      "answer": "Session 8 trust footer: ephemeral processing, no code stored, link to GET /security on public API (Trust:PublicApiBaseUrl). Built in AnthropicReviewResponseParser / ReviewService — compliance as code.",
+      "followUps": [
+        "Configurable per tenant?"
+      ],
+      "codeExample": "src/EngineIQ.AIEngine/Anthropic/AnthropicReviewResponseParser.cs"
+    },
+    {
+      "id": "eiq-30",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "How does marketing sign-up connect to the portal?",
+      "answer": "engineiq.co.za sign-up POSTs /api/v1/onboarding/register with dpa_accepted. Response tenant_id, install_url, api_key (once). User completes GitHub install, lands on app.engineiq.co.za with query params, logs in with tenant UUID + api key in portal.",
+      "followUps": [
+        "Why is api_key not in callback URL?"
+      ],
+      "codeExample": "web/marketing — sign-up flow"
+    },
+    {
+      "id": "eiq-31",
+      "category": "testing",
+      "difficulty": "senior",
+      "question": "What is the biggest testing gap?",
+      "answer": "Unit tests exist for policy, YAML, prompt parser; no CI test gate; no integration test for webhook→Postgres→RabbitMQ→worker; no Testcontainers RLS proof. publish-images.yml does not run tests.",
+      "followUps": [
+        "First two days of test investment?"
+      ],
+      "codeExample": "tests/EngineIQ.Tests.Unit/"
+    },
+    {
+      "id": "eiq-32",
+      "category": "trade-offs",
+      "difficulty": "senior",
+      "question": "Why .NET 8 for the core platform instead of Node?",
+      "answer": "(1) Strong typing and EF for multi-tenant relational model with RLS session discipline. (2) First-class BackgroundService for queue consumer without separate process manager. (3) Codist team velocity and shared libraries across API/Worker/Admin.",
+      "followUps": [
+        "When would Node be better?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-33",
+      "category": "backend",
+      "difficulty": "mid",
+      "question": "What does DPA acceptance record at registration?",
+      "answer": "register requires dpa_accepted: true or 400 dpa_accepted_required. Stores DpaAcceptedAt and DpaAcceptedIp (from X-Forwarded-For or connection IP) on tenant for POPIA audit trail.",
+      "followUps": [
+        "Trust:DpaPdfUrl usage?"
+      ],
+      "codeExample": "src/EngineIQ.API/Controllers/OnboardingController.cs"
+    },
+    {
+      "id": "eiq-34",
+      "category": "database",
+      "difficulty": "senior",
+      "question": "How are schema changes deployed safely?",
+      "answer": "EngineIQ.Migrator EF migrations run as one-shot docker compose --profile migration before platform up in deploy.sh. Failure blocks deploy. Down migrations exist in code but production path is forward-only with backup discipline per DEPLOYMENT.md.",
+      "followUps": [
+        "Bad migration recovery?"
+      ],
+      "codeExample": "docker/Dockerfile.migrator"
+    },
+    {
+      "id": "eiq-35",
+      "category": "architecture",
+      "difficulty": "senior",
+      "question": "First changes for 10x user/load growth?",
+      "answer": "Scale engineiq-worker replicas with competing consumers (ensure idempotent GitHub comments or dedupe). Add PgBouncer before connection exhaustion. Monitor RabbitMQ queue depth and Anthropic 429s. Cache portal preferences in Redis. API replicas second — webhook path is short.",
+      "followUps": [
+        "100x?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-36",
+      "category": "security",
+      "difficulty": "mid",
+      "question": "Why did CORS break behind Caddy and how was it fixed?",
+      "answer": "Portal on HTTPS calling API — Kestrel HTTPS redirection and missing/incorrect X-Forwarded-Proto caused redirect loops or wrong scheme on OPTIONS. Fix: ForwardedHeaders in Program.cs, HTTPS redirection only in Development, CORS preflight via middleware bypass for OPTIONS on API key paths.",
+      "followUps": [
+        "RequireCors on controllers?"
+      ],
+      "codeExample": "src/EngineIQ.API/Program.cs"
+    },
+    {
+      "id": "eiq-37",
+      "category": "backend",
+      "difficulty": "senior",
+      "question": "What are Codist golden-four tenants?",
+      "answer": "Long-lived integration fixtures (hello@mybillable.co.za, hello@therecord.co.za, hello@skillbay.co.za, technical@codist.co.za) tied to active repos and PRs. DEPLOYMENT.md: preserve in backups; unique installation_id per tenant; do not casual delete in clean-slate scripts.",
+      "followUps": [
+        "Bootstrap script?"
+      ],
+      "codeExample": "scripts/register-internal-demo-tenants.sh"
+    },
+    {
+      "id": "eiq-38",
+      "category": "frontend",
+      "difficulty": "mid",
+      "question": "What does AwaitingGitHubInstall mean in the portal?",
+      "answer": "Tenant row exists from registration but GitHubAppInstallationId is null — user must complete GitHub App install on the org they registered (e.g. codist-pty-ltd), not a personal account. Use install-url endpoint or onboarding wizard; Check connection refreshes account snapshot.",
+      "followUps": [
+        "Common mistake?"
+      ],
+      "codeExample": "web/portal/src/components/github/GitHubConnectPanel.tsx"
+    },
+    {
+      "id": "eiq-39",
+      "category": "trade-offs",
+      "difficulty": "senior",
+      "question": "What technical choice are you most proud of in EngineIQ?",
+      "answer": "Defense-in-depth tenant isolation: application API key route binding plus PostgreSQL RLS on tenant-owned tables plus explicit no-source-persistence orchestration aligned with POPIA/trust marketing — one coherent story from DB to PR comment footer.",
+      "followUps": [
+        "Weakest part of same story?"
+      ],
+      "codeExample": ""
+    },
+    {
+      "id": "eiq-40",
+      "category": "architecture",
+      "difficulty": "staff",
+      "question": "What breaks at 100x load?",
+      "answer": "Single PostgreSQL writer for all tenants and job inserts; Anthropic cost and rate limits; GitHub REST rate limits per installation; single-region Hetzner VPS network; no read replicas for reporting. Application tier likely not first bottleneck.",
+      "followUps": [
+        "Sharding strategy?"
+      ],
+      "codeExample": ""
+    }
+  ],
+  "systemDesignTopics": [
+    {
+      "topic": "Multi-tenancy",
+      "currentImplementation": "tenant_id on all tenant-owned rows; ApiKeyTenantMiddleware binds key to route UUID; EngineIQDbContext.SetCurrentTenantAsync sets app.current_tenant_id per transaction; RLS FORCE on repositories, pr_review_jobs, findings, tenant_metrics.",
+      "seniorInsight": "tenants table has RLS enabled but not FORCE so fn_resolve_tenant_by_installation can read installation_id before session tenant context exists — a deliberate exception juniors miss.",
+      "interviewQuestion": "How would you prove cross-tenant reads are impossible in a pen test?"
+    },
+    {
+      "topic": "Async review pipeline",
+      "currentImplementation": "POST /webhooks/github enqueues durable RabbitMQ message; engineiq-worker PullReviewJobConsumer processes with manual ack, 90s timeout, client-side Attempt counter.",
+      "seniorInsight": "Retries are republished to the same queue with incremented Attempt, not RabbitMQ DLX — ops must monitor pr-review-jobs-dlq depth directly.",
+      "interviewQuestion": "How do you scale to multiple workers without double-posting GitHub comments?"
+    },
+    {
+      "topic": "Idempotent webhooks",
+      "currentImplementation": "UNIQUE (tenant_id, github_delivery_id) on pr_review_jobs; duplicate X-GitHub-Delivery returns 200 OK without re-publish.",
+      "seniorInsight": "If RabbitMQ publish fails after insert, code deletes the queued job — correctness relies on GitHub redelivery; outbox would be the staff-level fix.",
+      "interviewQuestion": "Design an outbox between Postgres and RabbitMQ for this flow."
+    },
+    {
+      "topic": "Caching",
+      "currentImplementation": "Redis 7 container with AOF; no StackExchange.Redis or IDistributedCache in src.",
+      "seniorInsight": "GetPortalPreferencesAsync runs on every webhook enqueue — highest-value cache with invalidate on PATCH preferences.",
+      "interviewQuestion": "What TTL and invalidation would you use for tenant preferences?"
+    },
+    {
+      "topic": "Observability",
+      "currentImplementation": "Structured logging, /health, deploy.sh internal curls, optional Slack webhook on deploy.",
+      "seniorInsight": "No OpenTelemetry — you would not see p99 webhook_enqueue_ms vs review_duration_ms split today.",
+      "interviewQuestion": "Name three metrics and one trace span you add on day one."
+    },
+    {
+      "topic": "Portal authentication",
+      "currentImplementation": "localStorage engineiq_tenant_id + engineiq_api_key; static Next export; no Next middleware auth.",
+      "seniorInsight": "HttpOnly cookies need a session issuer (BFF or API cookie endpoint) — incompatible with pure static hosting without adding a small auth service.",
+      "interviewQuestion": "How would you upgrade auth without abandoning static export?"
+    },
+    {
+      "topic": "Feature flags",
+      "currentImplementation": "tenants.feature_flags_json jsonb column from Session 5 migration; admin can set; not all code paths consult flags yet.",
+      "seniorInsight": "Flags already live in DB — wiring ReviewEnqueuePolicy or AIEngine to flags is incremental, not greenfield.",
+      "interviewQuestion": "Roll out a risky review feature to 5% of tenants safely."
+    },
+    {
+      "topic": "Audit logging",
+      "currentImplementation": "GET /api/v1/tenant/{id}/audit returns completed review metadata only — not full CDC.",
+      "seniorInsight": "POPIA customers may ask who changed config_yaml — today you have timestamps on tenant row but not append-only actor log.",
+      "interviewQuestion": "Design audit_events for config and preference changes."
+    },
+    {
+      "topic": "Real-time updates",
+      "currentImplementation": "Portal polls via page loads and useEffect fetches; job status in DB.",
+      "seniorInsight": "SSE from API or short polling on jobs?status=processing is enough before WebSocket cluster.",
+      "interviewQuestion": "Add live job status without WebSockets — options and trade-offs?"
+    },
+    {
+      "topic": "Data residency and subprocessors",
+      "currentImplementation": "Trust JSON states Hetzner SA / Johannesburg; Anthropic API is US-region.",
+      "seniorInsight": "Enterprise sales need subprocessors table: GitHub, Anthropic, SendGrid, Hetzner — honest about AI egress.",
+      "interviewQuestion": "Explain to a CTO where code and prompts physically go."
+    }
+  ],
+  "behaviouralAnchors": [
+    {
+      "question": "Tell me about a difficult technical decision with incomplete information.",
+      "situation": "Customer portal had to ship as static export behind Caddy on app.engineiq.co.za without a dedicated BFF.",
+      "task": "Choose authentication that supports self-serve onboarding without building a session service.",
+      "action": "Ship API keys returned once at registration, stored in portal localStorage, sent on every tenant API call; document XSS and rotation trade-offs explicitly.",
+      "result": "Portal and marketing handoff work end-to-end; ops can rotate keys manually; trust narrative stays aligned with no server-side customer code storage.",
+      "seniorSignal": "Named the trade-off (localStorage vs HttpOnly session) and the constraint (static export), not just the mechanism."
+    },
+    {
+      "question": "Tell me about a time you disagreed with an approach.",
+      "situation": "Stakeholders expected per-tenant GitHub webhook HMAC secrets for enterprise storytelling.",
+      "task": "Align product copy and engineering with GitHub App platform limits.",
+      "action": "Documented in WebhookController that GitHub uses one App webhook secret; per-tenant whsec_* is generated, hashed, emailed once for customer records only.",
+      "result": "Support and engineering share one accurate story; no fake per-installation HMAC in code.",
+      "seniorSignal": "Explained platform constraint vs desired enterprise narrative."
+    },
+    {
+      "question": "Tell me about a production issue and how you handled it.",
+      "situation": "Portal at app.engineiq.co.za could not complete CORS preflight to api.engineiq.co.za after TLS at Caddy.",
+      "task": "Restore browser calls from static portal to API without breaking GitHub webhooks.",
+      "action": "Fixed forwarded headers and HTTPS redirection behaviour on API so OPTIONS and API calls see correct scheme behind reverse proxy.",
+      "result": "Portal login and tenant fetches work in production; webhook path unchanged.",
+      "seniorSignal": "Edge-aware debugging (Caddy + ForwardedHeaders), not only CORS header tweaks."
+    },
+    {
+      "question": "Tell me about the most complex feature you designed end to end.",
+      "situation": "Customers needed self-serve visibility into jobs, repos, usage, and settings without Codist admin access.",
+      "task": "Expose safe tenant APIs and static portal routes with tenant isolation.",
+      "action": "Extended TenantController with jobs/repos/usage/analytics/preferences endpoints; built Next portal pages with X-Api-Key client; wired ReviewEnqueuePolicy to portal preferences on webhook and worker.",
+      "result": "End-to-end self-serve operations for B2B tenants; admin remains for suspend/DLQ/plan changes.",
+      "seniorSignal": "Vertical slice across API, policy, and UI with isolation preserved."
+    },
+    {
+      "question": "Tell me about balancing technical quality with delivery speed.",
+      "situation": "Internal admin needed React SPA parity with Docker production while Razor Pages were being removed.",
+      "task": "Ship admin UI without blocking platform deploy.",
+      "action": "Vite React app at /admin, JSON AdminApiEndpoints, sync-admin-ui-wwwroot.sh and Dockerfile.admin multi-stage build.",
+      "result": "Local and production admin match; Basic auth on API only without WWW-Authenticate on /api routes breaking fetch.",
+      "seniorSignal": "Ops script and Docker parity treated as part of the design, not an afterthought."
+    },
+    {
+      "question": "Tell me about improving system performance significantly.",
+      "situation": "Portal analytics endpoint returned 500s in production after date aggregation shipped.",
+      "task": "Fix dashboard reliability and reduce error-driven DB retry load.",
+      "action": "Diagnosed EF Core translation bug: removed DateTimeOffset.UtcDateTime coercion in SQL projection; use .Date on DateTimeOffset (commit 5f7ea22).",
+      "result": "Analytics charts load; fewer failed queries against pr_review_jobs and findings.",
+      "seniorSignal": "Root-caused ORM-to-SQL mismatch, not patched with try/catch."
+    },
+    {
+      "question": "How do you approach code reviews?",
+      "situation": "Features touching persistence and GitHub comments.",
+      "task": "Protect POPIA/trust promise while shipping fast.",
+      "action": "Block any persistence of diff bodies or full file contents; require metadata-only findings; verify tenant_id and RLS paths on new queries.",
+      "result": "Consistent trust footer and GET /security story; no regression to source storage.",
+      "seniorSignal": "Non-negotiable constraint enforcement in review, not style nits."
+    }
+  ],
+  "dangerZones": [
+    {
+      "area": "Authentication",
+      "risk": "Saying JWT or session cookies when describing tenant API auth",
+      "whatJuniorSays": "We use JWT for the portal API.",
+      "whatSeniorSays": "Tenant routes use long-lived API keys sent as X-Api-Key; keys are stored as SHA256 only after registration. There is no JWT, no refresh token, and no server-side portal session because the portal is a static Next export on Caddy."
+    },
+    {
+      "area": "Data storage",
+      "risk": "Assuming PR diffs or source are stored in PostgreSQL",
+      "whatJuniorSays": "We store PR data and review results in the database.",
+      "whatSeniorSays": "The unified diff is fetched from GitHub and held in memory only through ReviewOrchestrator and ReviewService. PostgreSQL stores job metadata, finding paths/severity/messages, and metrics — never file contents or full diffs."
+    },
+    {
+      "area": "Webhooks",
+      "risk": "Believing Claude runs on the webhook HTTP thread",
+      "whatJuniorSays": "When GitHub sends a webhook we run the AI review and respond.",
+      "whatSeniorSays": "The webhook path has a ~450ms cancellation budget: HMAC validate, insert idempotent job row, optionally skip via ReviewEnqueuePolicy, publish to RabbitMQ, return 200. The worker runs the up-to-90s review with up to three application-level retries then DLQ."
+    },
+    {
+      "area": "Multi-tenancy",
+      "risk": "Only mentioning tenant_id in LINQ without database enforcement",
+      "whatJuniorSays": "We always filter queries by tenant_id in the app.",
+      "whatSeniorSays": "Child tables use FORCE ROW LEVEL SECURITY on app.current_tenant_id set via set_config per transaction. The tenants table enables RLS without FORCE so fn_resolve_tenant_by_installation can map GitHub installation_id before tenant context exists. Middleware also binds API keys to route tenant UUIDs."
+    },
+    {
+      "area": "Redis",
+      "risk": "Claiming Redis caches tenant config or rate limits today",
+      "whatJuniorSays": "Redis caches configuration on every request.",
+      "whatSeniorSays": "Redis is in docker-compose with AOF but no C# service references it yet — intentional provisioning for future cache or rate-limit partitions. Preferences are read from PostgreSQL on webhook enqueue today."
+    }
+  ]
+}

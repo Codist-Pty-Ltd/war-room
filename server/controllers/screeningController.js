@@ -1,4 +1,5 @@
 const Screening = require("../models/Screening");
+const { getAnthropicModel } = require("../config/anthropic");
 const { parseClaudeJson } = require("../utils/parseClaudeJson");
 
 const SCREENING_SYSTEM_PROMPT = `You are a senior technical interviewer preparing candidates for SENIOR DEVELOPER, TECH LEAD, DEVOPS / PLATFORM / SRE, and hands-on ENGINEERING MANAGER roles — often in regulated enterprise (banking, automotive, government).
@@ -106,7 +107,7 @@ async function generate(req, res, next) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: getAnthropicModel(),
         max_tokens: 4000,
         system: SCREENING_SYSTEM_PROMPT,
         messages: [
