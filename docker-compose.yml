@@ -6,6 +6,9 @@ services:
     # Create server/.env with at least WAR_ROOM_APP_USER, WAR_ROOM_APP_PASSWORD,
     # WAR_ROOM_SESSION_SECRET (16+ chars) or the UI will stay open with no login.
     env_file: ./server/.env
+    environment:
+      OTEL_SERVICE_NAME: warroom-server
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://host.docker.internal:4318}
     volumes:
       - sqlite-data:/app/data
     expose:
