@@ -71,6 +71,7 @@ Local interview prep app: **practice problems** (platform-style), **technical sc
 - **Rate limits** apply only to generation POSTs; listing history endpoints are not limited by the same middleware. Behind a reverse proxy, set **`TRUST_PROXY`** so per-IP limits are meaningful.
 - **No in-app editor**: practice and mock flows include a **local IDE stopwatch** and suggested minutes so you budget time to implement and run tests in your own environment. The header timer is the overall **session** clock only.
 - **Screening** includes **whiteboard / DevOps / tech-lead** categories and question types (`whiteboard_system`, `whiteboard_devops`, `whiteboard_lead`) with an on-screen **whiteboard prep** panel (3-minute sketch timer, narration tips). Generation prompts target senior IC, tech lead, and platform/SRE roles while answers stay “teach me like a junior.”
+- **Assessment notes**: IKM / TechCheck-style reconstructed full-stack question bank lives in [`assessments/ikm-techcheck-full-stack-qa.md`](assessments/ikm-techcheck-full-stack-qa.md).
 
 ## Health check
 
